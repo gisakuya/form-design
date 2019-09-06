@@ -29,13 +29,13 @@ export default {
         }
     },
     methods: {
-        moveTo: function(x, y){
-            mouse.x0 = x;
-            mouse.y0 = y;
+        moveTo: function(pos){
+            mouse.x0 = pos.x;
+            mouse.y0 = pos.y;
         },
-        lineTo: function(x, y) {
-            mouse.x1 = x;
-            mouse.y1 = y;
+        lineTo: function(pos) {
+            mouse.x1 = pos.x;
+            mouse.y1 = pos.y;
 
             // 计算坐标原点
             this.x = Math.min(mouse.x0, mouse.x1);
@@ -88,26 +88,26 @@ export default {
                 ctx.stroke();
 
                 // 画三角
-                if(from.x <= to.x){
-                    // 右边
-                    ctx.beginPath();
-                    ctx.moveTo(to.x, to.y);
-                    ctx.lineTo(to.x-10, to.y-10);
-                    ctx.lineTo(to.x-10, to.y+10);
-                    ctx.closePath();
-                    ctx.fillStyle = "red";
-                    ctx.fill();
-                }
-                else {
-                    // 左边
-                    ctx.beginPath();
-                    ctx.moveTo(to.x, to.y);
-                    ctx.lineTo(to.x+10, to.y-10);
-                    ctx.lineTo(to.x+10, to.y+10);
-                    ctx.closePath();
-                    ctx.fillStyle = "red";
-                    ctx.fill();
-                }
+                // if(from.x <= to.x){
+                //     // 右边
+                //     ctx.beginPath();
+                //     ctx.moveTo(to.x, to.y);
+                //     ctx.lineTo(to.x-10, to.y-10);
+                //     ctx.lineTo(to.x-10, to.y+10);
+                //     ctx.closePath();
+                //     ctx.fillStyle = "red";
+                //     ctx.fill();
+                // }
+                // else {
+                //     // 左边
+                //     ctx.beginPath();
+                //     ctx.moveTo(to.x, to.y);
+                //     ctx.lineTo(to.x+10, to.y-10);
+                //     ctx.lineTo(to.x+10, to.y+10);
+                //     ctx.closePath();
+                //     ctx.fillStyle = "red";
+                //     ctx.fill();
+                // }
             });
         }
     },

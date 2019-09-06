@@ -15,8 +15,7 @@
 
     <el-container>
       <el-header>
-          <el-link :underline="false" @click="straightLine">直线</el-link>
-          <el-link :underline="false" @click="foldLine">折线</el-link>
+        <el-switch v-model="drawLineMode" inactive-text="连线模式"></el-switch>
       </el-header>
 
       <el-main @dragover.native="allowDrop" @drop.native="drop" @mousedown.native="mouseDown" @mousemove.native="mouseMove" @mouseup.native="mouseUp"
@@ -25,10 +24,10 @@
             v-for="(item, index) in components" 
             :key="item.id" 
             :tabindex="index"
-            :showBorder="allShowBorder"
-            :onDotClick="componentDotClick"
+            :connectMode="drawLineMode"
             @init="componentInit"
             @keyup.delete.native="componentDel(index)"
+            @dotMouseDown="componentDotMouseDown"
           >
             <component :is="item.name"></component>
         </VResizable>
@@ -38,7 +37,7 @@
           :key="item.id"
           :tabindex="index"
           @init="shapeInit"
-          @keyup.delete.native="shapeDel(index)"  />
+          @keyup.delete.native="shapeDel(index)" />
 
       </el-main>
     </el-container>
@@ -62,6 +61,13 @@ function AfterComponentCreate(successFnt){
       }).then(successFnt);
 }
 
+function GetPos(ev){
+  return { 
+      x: ev.x - containerOffset.left, 
+      y: ev.y - containerOffset.top
+  };
+}
+
 export default {
   name: "Home",
   data() {
@@ -75,7 +81,7 @@ export default {
       ],
       components: [],
       shapes: [],
-      allShowBorder: false
+      drawLineMode: false
     }
   },
   methods: {
@@ -89,11 +95,8 @@ export default {
       componentCreateResolve(item);
     },
     componentDel: function(i) {
-      cur = {};
+      cur.item = null;
       this.components.splice(i, 1);
-    },
-    componentDotClick: function(ev){
-        return false;
     },
 
     // 形状相关
@@ -102,27 +105,22 @@ export default {
       componentCreateResolve(item);
     },
     shapeDel: function(i) {
-      cur = {};
+      cur.item = null;
       this.shapes.splice(i, 1);
     },
 
-    // 直线
-    straightLine: function() {
-      this.allShowBorder = !this.allShowBorder;
-      cur.drawShape = this.allShowBorder ? 'VLine' : null;
-    },
-    // 折线
-    foldLine: function() {
-    },
-
-    // 拖拉
+    // 拖拉组件
     drag: function(ev, item) {
       mouse.offsetX = ev.offsetX;
       mouse.offsetY = ev.offsetY;
       ev.dataTransfer.setData("Text", item.componentName);
+
+      cur.dragComponent = true;
     },
     allowDrop: function(ev) {
-      ev.preventDefault();
+      if(cur.dragComponent){
+        ev.preventDefault();
+      }
     },
     drop: function(ev) {
       ev.preventDefault();
@@ -133,28 +131,34 @@ export default {
       });
 
       AfterComponentCreate(item => {
-        item.setPos(ev.offsetX - mouse.offsetX, ev.offsetY - mouse.offsetY);
+        let pos = GetPos(ev);
+        item.setPos({ x: pos.x - mouse.offsetX, y: pos.y - mouse.offsetY });
       });
+
+      cur.dragComponent = false;
     },
 
-    // 鼠标行为
+    // 控制点
+    componentDotMouseDown: function(el, pos){
+      console.log(el);
+    },
+
+    // 连线
     mouseDown: function(ev) {
-      if(cur.drawShape){
+      if(this.drawLineMode){
           this.shapes.push({
             id: componentIndex++,
-            name: cur.drawShape
+            name: 'VLine'
           });
 
           AfterComponentCreate(item => {
-            mouse.prex = ev.offsetX;
-            mouse.prey = ev.offsetY;
-            item.moveTo(ev.x - containerOffset.left, ev.y - containerOffset.top);
+            item.moveTo(GetPos(ev));
           });
       }
     },
     mouseMove: function(ev) {
-      if(cur.item && cur.drawShape){
-          cur.item.lineTo(ev.x - containerOffset.left, ev.y - containerOffset.top);
+      if(this.drawLineMode && cur.item){
+          cur.item.lineTo(GetPos(ev));
       }
     },
     mouseUp: function(ev) {

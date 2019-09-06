@@ -10,21 +10,21 @@
       <slot></slot>
       <div v-if="isShowBorder" class="layer"></div>
       <!-- 左上角 -->
-      <div id="tl" class="ctl-dot tl" v-show="isShowBorder"></div>
+      <div id="tl" class="ctl-dot tl" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
       <!-- 右上角 -->
-      <div id="tr" class="ctl-dot tr" v-show="isShowBorder"></div>
+      <div id="tr" class="ctl-dot tr" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
       <!-- 左下角 -->
-      <div id="lb" class="ctl-dot lb" v-show="isShowBorder"></div>
+      <div id="lb" class="ctl-dot lb" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
       <!-- 右下角 -->
-      <div id="rb" class="ctl-dot rb" v-show="isShowBorder"></div>
+      <div id="rb" class="ctl-dot rb" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
       <!-- 上中 -->
-      <div id="tc" class="ctl-dot tc" v-show="isShowBorder"></div>
+      <div id="tc" class="ctl-dot tc" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
       <!-- 下中 -->
-      <div id="bc" class="ctl-dot bc" v-show="isShowBorder"></div>
+      <div id="bc" class="ctl-dot bc" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
       <!-- 左中 -->
-      <div id="lc" class="ctl-dot lc" v-show="isShowBorder"></div>
+      <div id="lc" class="ctl-dot lc" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
       <!-- 右中 -->
-      <div id="rc" class="ctl-dot rc" v-show="isShowBorder"></div>
+      <div id="rc" class="ctl-dot rc" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
   </div>
 </template>
 
@@ -49,13 +49,12 @@ export default {
         };
     },
     props: {
-        onDotClick: null,
-        showBorder: false
+        connectMode: Boolean
     },
     methods: {
-        setPos: function(x, y){
-            this.x = x;
-            this.y = y;
+        setPos: function(pos){
+            this.x = pos.x;
+            this.y = pos.y;
         },
     },
     computed: {
@@ -66,7 +65,7 @@ export default {
             return this.h ? this.h : this.$el.offsetHeight;
         },
         isShowBorder: function(){
-            return this.showBorder || this.showBorderInner;
+            return this.connectMode || this.showBorderInner;
         }
     },
     mounted: function() {
@@ -74,6 +73,7 @@ export default {
         const el = _this.$el;
 
         // 初始化控制按钮
+        let tcDot, bcDot, lcDot, rcDot, tlDot, trDot, lbDot, rbDot;
         let dots = el.getElementsByClassName("ctl-dot");
         for(let i = 0; i < dots.length; i++){
             let dot = dots[i];
@@ -83,12 +83,14 @@ export default {
                     _this.h = _this.realH - oy;
                     _this.y += oy;
                 };
+                tcDot = dot;
             }
             else if(dot.id == "bc"){
                 // 下中
                 dot.handler = (ox, oy)=> {
                     _this.h = _this.realH + oy;
                 };
+                bcDot = dot;
             }
             else if(dot.id == "lc"){
                 // 左中
@@ -96,12 +98,14 @@ export default {
                     _this.w = _this.realW - ox;
                     _this.x += ox;
                 };
+                lcDot = dot;
             }
             else if(dot.id == "rc"){
                 // 右中
                 dot.handler = (ox, oy)=> {
                     _this.w = _this.realW + ox;
                 };
+                rcDot = dot;
             }
             else if(dot.id == "tl"){
                 // 左上角（左中+上中）
@@ -111,6 +115,7 @@ export default {
                     _this.h = _this.realH - oy;
                     _this.y += oy;
                 };
+                tlDot = dot;
             }
             else if(dot.id == "tr"){
                 // 右上角(右中+上中)
@@ -119,6 +124,7 @@ export default {
                     _this.h = _this.realH - oy;
                     _this.y += oy;
                 };
+                trDot = dot;
             }
             else if(dot.id == "lb"){
                 // 左下角(左中+下中)
@@ -127,6 +133,7 @@ export default {
                     _this.x += ox;
                     _this.h = _this.realH + oy;
                 };
+                lbDot = dot;
             }
             else if(dot.id == "rb"){
                 // 右下角(右中+下中)
@@ -134,15 +141,14 @@ export default {
                     _this.w = _this.realW + ox;
                     _this.h = _this.realH + oy;
                 };
+                rbDot = dot;
             }
 
             dot.addEventListener("mousedown", function(ev) {
                 if(ev.button == 0){
-                    let handled = false;
-                    if(_this.onDotClick){
-                        handled = _this.onDotClick(ev);
-                    }
-                    if(handled){
+                    _this.$emit('dotMouseDown', ev.srcElement, { x: ev.x, y: ev.y });
+
+                    if(_this.connectMode){
                         ev.stopPropagation();
                         return;
                     }
@@ -151,10 +157,15 @@ export default {
                     mouse.x = ev.x;
                     mouse.y = ev.y;
                     mouse.handler = ev.currentTarget.handler;
+                    mouse.srcitem = ev.currentTarget;
 
                     _this.dragging = true;
                     ev.stopPropagation();
-
+                    
+                    _this.isActive = true;  // 激活
+                    _this.showBorderInner = true;// 显示边框
+                    
+                    // 设置鼠标样式
                     document.body.style.cursor = getComputedStyle(ev.currentTarget).cursor;
                 }
             })
@@ -171,6 +182,7 @@ export default {
                 mouse.x = ev.x;
                 mouse.y = ev.y;
                 mouse.handler = ev.currentTarget.handler;
+                mouse.srcitem = ev.currentTarget;
                 
                 _this.dragging = true;
                 ev.stopPropagation();
@@ -196,6 +208,10 @@ export default {
             mouse.handler(ox, oy);
             mouse.x = ev.x;
             mouse.y = ev.y;
+
+            _this.$nextTick(()=>{
+                _this.$emit('dotPosChange')
+            });
         })
 
         document.addEventListener("mouseup", function() {
@@ -205,6 +221,7 @@ export default {
             }
 
             _this.dragging = false;
+            // 还原鼠标样式
             document.body.style.cursor = "";
         })
 
@@ -297,6 +314,14 @@ export default {
         }
     }
 
+    // 连接模式
+    .connect-mode {
+        cursor: crosshair !important;
+        &:hover {
+            background: red;
+        }
+    }
+    
     // 遮罩
     .layer {
         top:0px;
