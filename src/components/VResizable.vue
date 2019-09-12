@@ -56,6 +56,43 @@ export default {
             this.x = pos.x;
             this.y = pos.y;
         },
+        getDotPos: function(dot){
+            if(dot == "tc"){
+                // 上中
+                return { x: this.x + this.realW/2, y: this. y };
+            }
+            else if(dot == "bc"){
+                // 下中
+                return { x: this.x + this.realW/2, y: this.y+this.realH };
+            }
+            else if(dot == "lc"){
+                // 左中
+                return { x: this.x, y: this.y + this.realH/2 };
+            }
+            else if(dot == "rc"){
+                // 右中
+                return { x: this.x + this.realW, y: this.y + this.realH/2 };
+            }
+            else if(dot == "tl"){
+                // 左上角（左中+上中）
+                return { x: this.x, y: this.y };
+            }
+            else if(dot == "tr"){
+                // 右上角(右中+上中)
+                return { x: this.x + this.realW, y: this.y };
+            }
+            else if(dot == "lb"){
+                // 左下角(左中+下中)
+                return { x: this.x, y: this.y + this.realH };
+            }
+            else if(dot == "rb"){
+                // 右下角(右中+下中)
+                return { x: this.x + this.realW, y: this.y + this.realH };
+            }
+        },
+        getRect: function(){
+            return { l: this.x, t: this.y, w: this.realW, h: this.realH };
+        }
     },
     computed: {
         realW: function() {
@@ -69,114 +106,109 @@ export default {
         }
     },
     mounted: function() {
-        const _this = this;
-        const el = _this.$el;
+        const el = this.$el;
 
         // 初始化控制按钮
-        let tcDot, bcDot, lcDot, rcDot, tlDot, trDot, lbDot, rbDot;
         let dots = el.getElementsByClassName("ctl-dot");
         for(let i = 0; i < dots.length; i++){
             let dot = dots[i];
             if(dot.id == "tc"){
                 // 上中
-                dot.handler = (ox, oy)=> {
-                    _this.h = _this.realH - oy;
-                    _this.y += oy;
+                dot.handler = (ox, oy) => {
+                    this.h = this.realH - oy;
+                    this.y += oy;
                 };
-                tcDot = dot;
             }
             else if(dot.id == "bc"){
                 // 下中
-                dot.handler = (ox, oy)=> {
-                    _this.h = _this.realH + oy;
+                dot.handler = (ox, oy) => {
+                    this.h = this.realH + oy;
                 };
-                bcDot = dot;
             }
             else if(dot.id == "lc"){
                 // 左中
-                dot.handler = (ox, oy)=> {
-                    _this.w = _this.realW - ox;
-                    _this.x += ox;
+                dot.handler = (ox, oy) => {
+                    this.w = this.realW - ox;
+                    this.x += ox;
                 };
-                lcDot = dot;
             }
             else if(dot.id == "rc"){
                 // 右中
-                dot.handler = (ox, oy)=> {
-                    _this.w = _this.realW + ox;
+                dot.handler = (ox, oy) => {
+                    this.w = this.realW + ox;
                 };
-                rcDot = dot;
             }
             else if(dot.id == "tl"){
                 // 左上角（左中+上中）
-                dot.handler = (ox, oy)=> {
-                    _this.w = _this.realW - ox;
-                    _this.x += ox;
-                    _this.h = _this.realH - oy;
-                    _this.y += oy;
+                dot.handler = (ox, oy) => {
+                    this.w = this.realW - ox;
+                    this.x += ox;
+                    this.h = this.realH - oy;
+                    this.y += oy;
                 };
-                tlDot = dot;
             }
             else if(dot.id == "tr"){
                 // 右上角(右中+上中)
-                dot.handler = (ox, oy)=> {
-                    _this.w = _this.realW + ox;
-                    _this.h = _this.realH - oy;
-                    _this.y += oy;
+                dot.handler = (ox, oy) => {
+                    this.w = this.realW + ox;
+                    this.h = this.realH - oy;
+                    this.y += oy;
                 };
-                trDot = dot;
             }
             else if(dot.id == "lb"){
                 // 左下角(左中+下中)
-                dot.handler = (ox, oy)=> {
-                    _this.w = _this.realW - ox;
-                    _this.x += ox;
-                    _this.h = _this.realH + oy;
+                dot.handler = (ox, oy) => {
+                    this.w = this.realW - ox;
+                    this.x += ox;
+                    this.h = this.realH + oy;
                 };
-                lbDot = dot;
             }
             else if(dot.id == "rb"){
                 // 右下角(右中+下中)
-                dot.handler = (ox, oy)=> {
-                    _this.w = _this.realW + ox;
-                    _this.h = _this.realH + oy;
+                dot.handler = (ox, oy) => {
+                    this.w = this.realW + ox;
+                    this.h = this.realH + oy;
                 };
-                rbDot = dot;
             }
 
-            dot.addEventListener("mousedown", function(ev) {
+            dot.addEventListener("mousedown", ev => {
                 if(ev.button == 0){
-                    _this.$emit('dotMouseDown', ev.srcElement, { x: ev.x, y: ev.y });
+                    // 鼠标左键
+                    this.$emit('DotMouseDown', el, ev.srcElement.id);
 
-                    if(_this.connectMode){
+                    if(this.connectMode){
                         ev.stopPropagation();
                         return;
                     }
 
-                    // 鼠标左键
                     mouse.x = ev.x;
                     mouse.y = ev.y;
                     mouse.handler = ev.currentTarget.handler;
                     mouse.srcitem = ev.currentTarget;
 
-                    _this.dragging = true;
+                    this.dragging = true;
                     ev.stopPropagation();
                     
-                    _this.isActive = true;  // 激活
-                    _this.showBorderInner = true;// 显示边框
+                    this.isActive = true;  // 激活
+                    this.showBorderInner = true;// 显示边框
                     
                     // 设置鼠标样式
                     document.body.style.cursor = getComputedStyle(ev.currentTarget).cursor;
                 }
-            })
+            });
+
+            dot.addEventListener("click", ev => {
+                this.$emit('DotClick', this, ev.srcElement.id);
+                ev.stopPropagation();
+            });
         }
 
         el.handler = (ox, oy)=> {
-            _this.x += ox;
-            _this.y += oy;
+            this.x += ox;
+            this.y += oy;
         };
 
-        el.addEventListener("mousedown", function(ev) {
+        el.addEventListener("mousedown", ev => {
             if(ev.button == 0){
                 // 鼠标左键
                 mouse.x = ev.x;
@@ -184,24 +216,24 @@ export default {
                 mouse.handler = ev.currentTarget.handler;
                 mouse.srcitem = ev.currentTarget;
                 
-                _this.dragging = true;
+                this.dragging = true;
                 ev.stopPropagation();
             }
 
-            _this.isActive = true;  // 激活
-            _this.showBorderInner = true;// 显示边框
+            this.isActive = true;  // 激活
+            this.showBorderInner = true;// 显示边框
         })
 
-        el.addEventListener("mouseenter", function(ev) {
-            _this.showBorderInner = true;
+        el.addEventListener("mouseenter", ev => {
+            this.showBorderInner = true;
         })
 
-        el.addEventListener("mouseleave", function(ev) {
-            if(!_this.isActive) _this.showBorderInner = false;
+        el.addEventListener("mouseleave", ev => {
+            if(!this.isActive) this.showBorderInner = false;
         })
 
-        document.addEventListener("mousemove", function(ev) {
-            if(!_this.dragging) return;            
+        document.addEventListener("mousemove", ev => {
+            if(!this.dragging) return;            
 
             let ox = ev.x - mouse.x;
             let oy = ev.y - mouse.y;
@@ -209,23 +241,23 @@ export default {
             mouse.x = ev.x;
             mouse.y = ev.y;
 
-            _this.$nextTick(()=>{
-                _this.$emit('dotPosChange')
+            this.$nextTick(() => {
+                this.$emit("DotPosChanged");
             });
         })
 
-        document.addEventListener("mouseup", function() {
-            if(!_this.dragging){
-                _this.isActive = false;
-                _this.showBorderInner = false;
+        document.addEventListener("mouseup", () => {
+            if(!this.dragging){
+                this.isActive = false;
+                this.showBorderInner = false;
             }
 
-            _this.dragging = false;
+            this.dragging = false;
             // 还原鼠标样式
             document.body.style.cursor = "";
         })
 
-        _this.$emit('init', _this);
+        this.$emit('init', this);
     }
 }
 </script>
@@ -236,6 +268,7 @@ export default {
         position: absolute;
         padding: 5px;
         border: 2px solid #9ed0fa;
+        z-index: 98;
 
         &:focus{
             outline: none;
@@ -251,6 +284,7 @@ export default {
         height: @dotRadius*2;
         border-radius: 50%;
         position: absolute;
+        z-index: 99;
         
         // 左上角
         &.tl {

@@ -27,7 +27,7 @@
             :connectMode="drawLineMode"
             @init="componentInit"
             @keyup.delete.native="componentDel(index)"
-            @dotMouseDown="componentDotMouseDown"
+            @DotClick="componentDotClick"
           >
             <component :is="item.name"></component>
         </VResizable>
@@ -91,22 +91,21 @@ export default {
     },
     // 组件相关
     componentInit: function(item) {
-      cur.item = item;
       componentCreateResolve(item);
     },
     componentDel: function(i) {
-      cur.item = null;
       this.components.splice(i, 1);
     },
 
     // 形状相关
     shapeInit: function(item) {
-      cur.item = item;
       componentCreateResolve(item);
     },
     shapeDel: function(i) {
-      cur.item = null;
       this.shapes.splice(i, 1);
+    },
+    shapeDelLast: function(){
+      this.shapes.pop();
     },
 
     // 拖拉组件
@@ -139,30 +138,40 @@ export default {
     },
 
     // 控制点
-    componentDotMouseDown: function(el, pos){
-      console.log(el);
+    componentDotClick: function(el, dot){
+      if(this.drawLineMode){
+        if(cur.line == null){
+            this.shapes.push({
+              id: componentIndex++,
+              name: 'VLine'
+            });
+
+            AfterComponentCreate(item => {
+              item.bindSource(el, dot);
+              cur.line = item;
+            });
+        }
+        else{
+          cur.line.bindDest(el, dot);
+          cur.line = null;
+        }
+      }
     },
 
     // 连线
     mouseDown: function(ev) {
-      if(this.drawLineMode){
-          this.shapes.push({
-            id: componentIndex++,
-            name: 'VLine'
-          });
-
-          AfterComponentCreate(item => {
-            item.moveTo(GetPos(ev));
-          });
-      }
     },
     mouseMove: function(ev) {
-      if(this.drawLineMode && cur.item){
-          cur.item.lineTo(GetPos(ev));
+      if(this.drawLineMode && cur.line){
+          cur.line.lineTo(GetPos(ev));
       }
     },
     mouseUp: function(ev) {
-      cur = {};
+      if(this.drawLineMode && ev.button == 2){
+        // 取消画线
+        this.shapeDelLast();
+        cur.line = null;
+      }
     },
   },
   mounted: function(params) {
@@ -170,6 +179,9 @@ export default {
       left: this.$refs.mainContainer.$el.offsetLeft,
       top: this.$refs.mainContainer.$el.offsetTop
     };
+
+    // 禁止右键菜单
+    document.addEventListener('contextmenu', event => event.preventDefault());
   },
   components: {
     VResizable,

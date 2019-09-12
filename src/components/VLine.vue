@@ -6,7 +6,8 @@
 </template>
 
 <script>
-let mouse = {};
+import { GetPaths } from "./VLineUtility";
+
 export default {
     name: 'VLine',
     data: function(){
@@ -15,7 +16,11 @@ export default {
             y: 0,
             w: 0,
             h: 0,
+            mouse: {},
+            isActive: false,
             context: null,
+            source: null,
+            dest: null,
         };
     },
     props: {
@@ -30,13 +35,17 @@ export default {
     },
     methods: {
         moveTo: function(pos){
-            mouse.x0 = pos.x;
-            mouse.y0 = pos.y;
+            this.mouse.x0 = pos.x;
+            this.mouse.y0 = pos.y;
+            this.paint();
         },
         lineTo: function(pos) {
-            mouse.x1 = pos.x;
-            mouse.y1 = pos.y;
-
+            this.mouse.x1 = pos.x;
+            this.mouse.y1 = pos.y; 
+            this.paint();
+        },
+        paint: function(){
+            const mouse = this.mouse;
             // 计算坐标原点
             this.x = Math.min(mouse.x0, mouse.x1);
             this.y = Math.min(mouse.y0, mouse.y1);
@@ -48,80 +57,113 @@ export default {
             // 扩大画布的面积，使之包围里面的图形
             this.x -= 10;
             this.y -= 10;
-            this.h += 20;
-            this.w += 20;
+            this.h += 100;
+            this.w += 100;
 
             this.$nextTick(()=>{
-                const ctx = this.context;
+                let ctx = this.context;
+                ctx.clearRect(0, 0, this.$el.width, this.$el.height);
                 ctx.beginPath();
-                ctx.lineWidth = this.width;
-                ctx.strokeStyle= this.color;
+                ctx.lineWidth = this.width;     // 线条粗细
+                ctx.strokeStyle= this.isActive ? "red" : this.color;    // 线条颜色
 
-                let from = { x: mouse.x0 - this.x, y: mouse.y0 - this.y  }; // 起点
-                let to = { x: mouse.x1 - this.x,  y: mouse.y1 - this.y  };  // 终点
+                const from = { x: mouse.x0 , y: mouse.y0  }; // 起点
+                const to = { x: mouse.x1,  y: mouse.y1  };  // 终点
 
-                ctx.moveTo(from.x, from.y);
-
-                if(from.x == to.x || from.y == to.y){
-                    // 水平 或者 垂直
+                let paths = null;
+                if(this.dest){
+                    const rectFrom = this.source.el.getRect();
+                    const rectTo = this.dest.el.getRect();
+                    paths = GetPaths(rectFrom, from, rectTo, to);
                 }
-                else {
-                    if(from.x <= to.x) {
-                        // 右边
-                        let mid1 = { x: from.x + (to.x - from.x) / 2.0, y: from.y }; // 拐点1
-                        let mid2 = { x: mid1.x, y: to.y };                // 拐点2
-
-                        ctx.lineTo(mid1.x, mid1.y);
-                        ctx.lineTo(mid2.x, mid2.y);
-                    }
-                    else {
-                        // 左边
-                        let mid1 = { x: to.x + (from.x - to.x) / 2.0, y: from.y }; // 拐点1
-                        let mid2 = { x: mid1.x, y: to.y };                // 拐点2
-
-                        ctx.lineTo(mid1.x, mid1.y);
-                        ctx.lineTo(mid2.x, mid2.y);
-                    }
+                else{
+                    paths = [ from, to ];
                 }
 
-                ctx.lineTo(to.x, to.y);
+                for (let i = 0; i < paths.length; i++) {
+                    const path = paths[i];
+                    let x = path.x - this.x;
+                    let y = path.y - this.y;
+                    if(i == 0){
+                        ctx.moveTo(x, y);
+                    }
+                    else{
+                        ctx.lineTo(x, y);
+                    }
+                }
                 ctx.stroke();
-
-                // 画三角
-                // if(from.x <= to.x){
-                //     // 右边
-                //     ctx.beginPath();
-                //     ctx.moveTo(to.x, to.y);
-                //     ctx.lineTo(to.x-10, to.y-10);
-                //     ctx.lineTo(to.x-10, to.y+10);
-                //     ctx.closePath();
-                //     ctx.fillStyle = "red";
-                //     ctx.fill();
-                // }
-                // else {
-                //     // 左边
-                //     ctx.beginPath();
-                //     ctx.moveTo(to.x, to.y);
-                //     ctx.lineTo(to.x+10, to.y-10);
-                //     ctx.lineTo(to.x+10, to.y+10);
-                //     ctx.closePath();
-                //     ctx.fillStyle = "red";
-                //     ctx.fill();
-                // }
             });
-        }
+        },
+
+        moveToSource: function(){
+            const { el, dot } = this.source;
+            const pos = el.getDotPos(dot);
+            this.moveTo(pos);
+        },
+        lineToDest: function(){
+            const { el, dot } = this.dest;
+            const pos = el.getDotPos(dot);
+            this.lineTo(pos);
+        },
+
+        bindSource(el, dot){
+            if(this.source) el.$off("DotPosChanged", this.moveToSource);
+            el.$on("DotPosChanged", this.moveToSource);
+
+            this.source = { el: el, dot: dot }; 
+
+            this.moveToSource();
+        },
+        bindDest(el, dot){
+            if(this.dest) el.$off("DotPosChanged", this.lineToDest);
+            el.$on("DotPosChanged", this.lineToDest);
+
+            this.dest = { el: el, dot: dot }; 
+
+            this.lineToDest();
+        },
     },
     mounted: function() {
         this.context = this.$el.getContext('2d');
+
+        // this.$el.addEventListener("click", ev=>{
+        //     if(ev.button == 0){
+        //         this.isActive = true;
+        //         this.paint();
+        //         ev.stopPropagation();
+        //     }
+        // });
+
+        // document.addEventListener("click", ev=>{
+        //     if(ev.button == 0){
+        //         this.isActive = false
+        //         this.paint();
+        //     }
+        // });
+
         this.$emit('init', this);
+    },
+    destroyed: function(){
+        if(this.source){
+            this.source.el.$off("DotPosChanged", this.moveToSource);
+        }
+        if(this.dest){
+            this.dest.el.$off("DotPosChanged", this.lineToDest);
+        }
     }
 }
 </script>
 
-<style scoped>
+<style lang="less" scoped>
     canvas {
         display: inline-block;
         position: absolute;
-        background: yellow;
+        /* background: yellow; */
+        background: transparent;
+        cursor: pointer;
+
+        &:focus{
+            outline: none;
+        }
     }
 </style>
