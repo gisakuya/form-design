@@ -23,7 +23,16 @@ function IsLineEdge(pt1, pt2, rect){
         // 垂直线
         if(pt1.x == l || pt1.x == r){
             // 贴边
-            if(t <= pt1.y && pt1.y <= b || t <= pt2.y && pt2.y <= b) return true;
+            let t1, t2;
+            if(pt1.y <= pt2.y){
+                t1 = pt1.y;
+                t2 = pt2.y;
+            }
+            else{
+                t1 = pt2.y;
+                t2 = pt1.y;
+            }
+            if(t1 < t && t < t2 || t1 < b && b < t2) return true;
         }
         return false;
     }
@@ -31,7 +40,16 @@ function IsLineEdge(pt1, pt2, rect){
         // 水平线
         if(pt1.y == t || pt1.y == b){
             // 贴边
-            if(l <= pt1.x && pt1.x <= r || l <= pt2.x && pt2.x <= r) return true;
+            let x1, x2;
+            if(pt1.x <= pt2.x){
+                x1 = pt1.x;
+                x2 = pt2.x;
+            }
+            else{
+                x1 = pt2.x;
+                x2 = pt1.x;
+            }
+            if(x1 < l && l < x2 || x1 < r && r < x2) return true;
         }
         return false;
     }
@@ -53,15 +71,15 @@ function GetPointsWithCenter(rect) {
     const hc = l + w/2;
     const vc = t + h/2;
 
-    let x1 = { x: l, y: t, weight: 2 };
-    let x2 = { x: hc, y: t, weight: 2 };
-    let x3 = { x: r, y: t, weight: 2 };
-    let x4 = { x: l, y: vc, weight: 2 };
-    let x5 = { x: hc, y: vc, weight: 1 };
-    let x6 = { x: r, y: vc, weightw: 2 };
-    let x7 = { x: l, y: b, weight: 2 };
-    let x8 = { x: hc, y: b, weight: 2 };
-    let x9 = { x: r, y: b, weight: 2 };
+    let x1 = { x: l, y: t };
+    let x2 = { x: hc, y: t };
+    let x3 = { x: r, y: t };
+    let x4 = { x: l, y: vc };
+    let x5 = { x: hc, y: vc, isCenter: true };
+    let x6 = { x: r, y: vc };
+    let x7 = { x: l, y: b };
+    let x8 = { x: hc, y: b };
+    let x9 = { x: r, y: b };
 
     if(h == 0 && w > 0){
         x1.r = x2;
@@ -212,10 +230,6 @@ function SearchPath(ptSrc, ptDest){
     return paths;
 }
 
-function PrintPaths(path){
-    console.log(path.map(x=>`(${x.x},${x.y})`).join("->"));
-}
-
 export function GetPaths(rect1, pt1, rect2, pt2){
     const points1 = GetPoints(rect1);
     const points2 = GetPoints(rect2);
@@ -258,25 +272,46 @@ export function GetPaths(rect1, pt1, rect2, pt2){
         const searchPath = searchPaths[i];
 
         let weight = 0;
+        let log = "";
         for (let i = 0; i < searchPath.length-1; i++) {
             const pt = searchPath[i];
             const npt = searchPath[i+1];
-            let lineInRect1 = IsLineEdge(pt, npt, rect1) ? -1 : 0;
-            let lineInRect2 = IsLineEdge(pt, npt, rect2) ? -1 : 0;
-            pt.lineInRect1 = lineInRect1;
-            pt.lineInRect2 = lineInRect2;
-            delete pt.l;delete pt.t;delete pt.r;delete pt.b;
-            delete npt.l;delete npt.t;delete npt.r;delete npt.b;
-            weight += pt.weight + lineInRect1 + lineInRect2;
-        }
+            let lineInRect1 = IsLineEdge(pt, npt, rect1) ? -2 : 0;
+            let lineInRect2 = IsLineEdge(pt, npt, rect2) ? -2 : 0;
+            let lineToCenter = npt.isCenter ? 1 : 2;
+            weight += lineToCenter + lineInRect1 + lineInRect2;
 
+            let dir = "";
+            if(pt.x == npt.x){
+                // 垂直
+                if(pt.y <= npt.y){
+                    dir = "↓";
+                }
+                else{
+                    dir = "↑";
+                }
+            }
+            else if(pt.y == npt.y){
+                // 水平
+                if(pt.x <= npt.x){
+                    dir = "→";
+                }
+                else{
+                    dir = "←";
+                }
+            }
+            log += `${dir}[${lineToCenter},${lineInRect1},${lineInRect2}]`;
+        }
         searchPath.weight = weight;
+
         if(weight > maxWeight){
             maxWeight = weight;
         }
+
+        console.log(log, weight);
     }
     const maxWeightPaths = searchPaths.filter(x=>x.weight == maxWeight);
-    console.log(maxWeightPaths);
     const paths = [ ...paths1, ...maxWeightPaths[0], ...paths2 ];
+    console.log(maxWeightPaths);
     return paths;
 }
