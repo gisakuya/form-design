@@ -1,3 +1,4 @@
+// 矩形是否有交集（贴边不算）
 function IsRectIntersect(rect1, rect2){
     const r1l = rect1.l;
     const r1r = rect1.l + rect1.w;
@@ -13,6 +14,12 @@ function IsRectIntersect(rect1, rect2){
     return true;
 }
 
+// 返回最小最大值
+function FindMinMax(a,b){
+    return a >= b ? { min:b, max:a } : { min:a, max:b };
+}
+
+// 判断直线是否跟矩形的边重叠
 function IsLineEdge(pt1, pt2, rect){
     const l = rect.l;
     const r = rect.l + rect.w;
@@ -23,16 +30,8 @@ function IsLineEdge(pt1, pt2, rect){
         // 垂直线
         if(pt1.x == l || pt1.x == r){
             // 贴边
-            let t1, t2;
-            if(pt1.y <= pt2.y){
-                t1 = pt1.y;
-                t2 = pt2.y;
-            }
-            else{
-                t1 = pt2.y;
-                t2 = pt1.y;
-            }
-            if(t1 < t && t < t2 || t1 < b && b < t2) return true;
+            let { min, max } = FindMinMax(pt1.y, pt2.y);
+            if(min < t && t < max || min < b && b < max) return true;
         }
         return false;
     }
@@ -40,16 +39,8 @@ function IsLineEdge(pt1, pt2, rect){
         // 水平线
         if(pt1.y == t || pt1.y == b){
             // 贴边
-            let x1, x2;
-            if(pt1.x <= pt2.x){
-                x1 = pt1.x;
-                x2 = pt2.x;
-            }
-            else{
-                x1 = pt2.x;
-                x2 = pt1.x;
-            }
-            if(x1 < l && l < x2 || x1 < r && r < x2) return true;
+            let { min, max } = FindMinMax(pt1.x, pt2.x);
+            if(min < l && l < max || min < r && r < max) return true;
         }
         return false;
     }
@@ -57,7 +48,8 @@ function IsLineEdge(pt1, pt2, rect){
     throw '无法判断';
 }
 
-function GetPointsWithCenter(rect) {
+// 返回矩形的9个点
+function Get9Points(rect) {
     /* 
         1---2---3
         |   |   |
@@ -113,7 +105,8 @@ function GetPointsWithCenter(rect) {
     return [ x1, x2, x3, x4, x5, x6, x7, x8, x9 ];
 }
 
-function GetPoints(rect) {
+// 返回矩形的4个点
+function Get4Points(rect) {
     /* 
         1------2
         |      |
@@ -129,62 +122,145 @@ function GetPoints(rect) {
     let x3 = { x: l, y: b, name: "x3" };
     let x4 = { x: r, y: b, name: "x4" };
 
+    let arr = null;
+
     if(h == 0 && w > 0){
-        x1.next = x2;
-        x2.next = x1;
-        return [ x1, x2 ];
+        arr = [ x1, x2 ];
     }
 
     if(h > 0 && w == 0){
-        x1.next = x3;
-        x3.next = x1;
-        return [ x1, x3 ];
+        arr = [ x1, x3 ];
     }
 
     if(h == 0 && w == 0){
-        x1.next = x1;
-        return [ x1 ];
+        arr = [ x1 ];
     }
 
-    // h > 0 && w > 0
-    x1.next = x2;
-    x2.next = x4;
-    x4.next = x3;
-    x3.next = x1;
+    if(h > 0 && w > 0){
+        arr = [ x1, x2, x3, x4 ];
+    }
 
-    return [ x1, x2, x3, x4 ];
+    arr.getNextR = pt => {
+        if(pt.x == x1.x && pt.y == x1.y){
+            return x2;
+        }
+        else if(pt.x == x2.x && pt.y == x2.y){
+            return x4;
+        }
+        else if(pt.x == x3.x && pt.y == x3.y){
+            return x1;
+        }
+        else if(pt.x == x4.x && pt.y == x4.y){
+            return x3;
+        }
+        else if(pt.y == x1.y && x1.x < pt.x && pt.x < x2.x){
+            // 上
+            return x2;
+        }
+        else if(pt => pt.y == x3.y && x3.x < pt.x && pt.x < x4.x){
+            // 下
+            return x3;
+        }
+        else if(pt.x == x1.x && x1.y < pt.y && pt.y < x3.y){
+            // 左
+            return x1;
+        }
+        else if(pt.x == x2.x && x2.y < pt.y && pt.y < x4.y){
+            // 右
+            return x4;
+        }
+
+        return null;
+    };
+
+    arr.getNext = (pt,dir)=>{
+        let [xdir, ydir] = dir;
+
+        if(pt.x == x1.x && pt.y == x1.y){
+            if(xdir == "r") return x2;
+            if(ydir == "b") return x3;
+        }
+        else if(pt.x == x2.x && pt.y == x2.y){
+            if(xdir == "l") return x1;
+            if(ydir == "b") return x4;
+        }
+        else if(pt.x == x3.x && pt.y == x3.y){
+            if(xdir == "r") return x4;
+            if(ydir == "t") return x1;
+        }
+        else if(pt.x == x4.x && pt.y == x4.y){
+            if(xdir == "l") return x3;
+            if(ydir == "t") return x2;
+        }
+        else if(pt.y == x1.y && x1.x < pt.x && pt.x < x2.x){
+            // 上
+            if(xdir == "l") return x1;
+            if(xdir == "r") return x2;
+        }
+        else if(pt => pt.y == x3.y && x3.x < pt.x && pt.x < x4.x){
+            // 下
+            if(xdir == "l") return x3;
+            if(xdir == "r") return x4;
+        }
+        else if(pt.x == x1.x && x1.y < pt.y && pt.y < x3.y){
+            // 左
+            if(ydir == "t") return x1;
+            if(ydir == "b") return x3;
+        }
+        else if(pt.x == x2.x && x2.y < pt.y && pt.y < x4.y){
+            // 右
+            if(ydir == "t") return x2;
+            if(ydir == "b") return x4;
+        }
+
+        return null;
+    };
+
+    arr.getPaths = (from, to) => {
+        if(from.x == to.x && from.y == to.y) return [];
+
+        let xdir = to.x > from.x ? "r" : to.x < from.x ? "l" : "=";
+        let ydir = to.y > from.y ? "b" : to.y < from.y ? "t" : "=";
+        let dir = xdir+ydir;
+        
+        let paths = [];
+        let pt = from;
+        while(pt != to){
+            paths.push(pt);
+            pt = this.getNext(pt, dir);
+        }
+
+        return paths;
+    };
+
+    return arr;
 }
 
+// 根据2个点，构建一个矩形
 function GetRect(pt1, pt2){
-    let l = Math.min(pt1.x, pt2.x);
-    let t = Math.min(pt1.y, pt2.y);
-    let w = Math.abs(pt1.x - pt2.x);
-    let h = Math.abs(pt1.y - pt2.y);
+    let l = 0, t = 0, w = 0, h = 0;
+    if(pt1.x <= pt2.x){
+        l = pt1.x;
+        w = pt2.x - pt1.x;
+    }
+    else{
+        l = pt2.x;
+        w = pt1.x - pt2.x;
+    }
+
+    if(pt1.y <= pt2.y){
+        t = pt1.y;
+        h = pt2.y - pt1.y;
+    }
+    else{
+        t = pt2.y;
+        h = pt1.y - pt2.y;
+    }
+
     return { l, t, w, h };
 }
 
-function GetNextPoint(pt, points){
-    // 顺时针找下一个点
-    if(!pt.next){
-        let obj = {};
-        for(let i = 0; i < points.length; i++){
-            let npt = points[i];
-            if(npt.x == pt.x && npt.y == pt.y){
-                return npt.next;
-            }
-            obj[npt.name] = npt;
-        }
-        let { x1, x2, x3, x4 } = obj;
-        if(x1.x < pt.x && pt.x < x2.x && x1.y == pt.y) return x2;
-        if(x3.x < pt.x && pt.x < x4.x && x3.y == pt.y) return x3;
-        if(x1.y < pt.y && pt.y < x3.y && x1.x == pt.x) return x1;
-        if(x2.y < pt.y && pt.y < x4.y && x2.x == pt.x) return x4;
-        return null;
-    }
-
-    return pt.next;
-}
-
+// 查找路径
 function SearchPath(ptSrc, ptDest){
     // 查找目标方向
     let direction = "";
@@ -230,32 +306,68 @@ function SearchPath(ptSrc, ptDest){
     return paths;
 }
 
+
+// 查找路径
 export function GetPaths(rect1, pt1, rect2, pt2){
-    const points1 = GetPoints(rect1);
-    const points2 = GetPoints(rect2);
+    const points1 = Get4Points(rect1);
+    const points2 = Get4Points(rect2);
 
     let paths1 = [];
     let paths2 = [];
     let tmpRect = null;
-    while(true){
+
+    let i = 20;
+    while(i--){
         tmpRect = GetRect(pt1, pt2);
-        const rect1IWTmpRect = IsRectIntersect(rect1, tmpRect);
-        const rect2IWTmpRect = IsRectIntersect(rect2, tmpRect);
-
-        if(!rect1IWTmpRect && !rect2IWTmpRect) break;
-
-        if(rect1IWTmpRect){
-            paths1.push(pt1);
-            pt1 = GetNextPoint(pt1, points1);
+        let shortestPath = null;
+        if(IsRectIntersect(tmpRect, rect2)){
+            let candidates = [];
+            let minPathLen = 999;
+            points2.forEach(pt => {
+                tmpRect = GetRect(pt1, pt);
+                if(!IsRectIntersect(tmpRect, rect2)){
+                    let paths = points2.getPaths(pt2, pt);
+                    candidates.push({ pt: pt, rect: tmpRect, paths: paths, len: paths.length });
+                    if(paths.length < minPathLen){
+                        minPathLen = paths.length;
+                    }
+                }
+            });
+            let minPathCandidates = candidates.filter(x=>x.len == minPathLen);
+            if(minPathCandidates.length == 0){
+                // 找不到最短路径
+            }
+            else if(minPathCandidates.length == 1){
+                // 找到一条最短路径
+                shortestPath = minPathCandidates[0];
+            }
+            else {
+                // 找到多条最短路径
+                shortestPath = minPathCandidates[0];
+                console.log('找到多条最短路径');
+            }
+        }else{
+            shortestPath = [];
         }
-        if(rect2IWTmpRect){
-            paths2.unshift(pt2);
-            pt2 = GetNextPoint(pt2, points2);
+
+        if(shortestPath == null){
+            if(paths1.includes(pt1)){
+                // 重复添加了
+                throw "无法找到最优路径";
+            }
+            paths1.push(pt1);
+            pt1 = points1.getNextR(pt1);
+        }
+        else{
+            if(!IsRectIntersect(tmpRect, rect1)){
+                paths2 = shortestPath.reverse();
+                break;
+            }
         }
     }
-
-    const tmpRectPoints = GetPointsWithCenter(tmpRect);
-
+    
+    // 根据临时矩形，获取临时矩形上的9个点
+    const tmpRectPoints = Get9Points(tmpRect);
     tmpRectPoints.forEach(pt=>{
         if(pt1.x == pt.x && pt1.y == pt.y){
             pt1 = pt;
@@ -265,12 +377,12 @@ export function GetPaths(rect1, pt1, rect2, pt2){
         }
     });
 
+    // 搜索路径
     const searchPaths = SearchPath(pt1, pt2);
 
-    let maxWeight = 0;
-    for (let i = 0; i < searchPaths.length; i++) {
-        const searchPath = searchPaths[i];
-
+    // 计算路径权重
+    let maxWeight = -999;
+    searchPaths.forEach(searchPath => {
         let weight = 0;
         let log = "";
         for (let i = 0; i < searchPath.length-1; i++) {
@@ -281,6 +393,7 @@ export function GetPaths(rect1, pt1, rect2, pt2){
             let lineToCenter = npt.isCenter ? 1 : 2;
             weight += lineToCenter + lineInRect1 + lineInRect2;
 
+            // ---打印部分---
             let dir = "";
             if(pt.x == npt.x){
                 // 垂直
@@ -301,17 +414,28 @@ export function GetPaths(rect1, pt1, rect2, pt2){
                 }
             }
             log += `${dir}[${lineToCenter},${lineInRect1},${lineInRect2}]`;
+            // ---------
         }
+
+        // 保存当前路径权重
         searchPath.weight = weight;
 
+        // 记录最大权重
         if(weight > maxWeight){
             maxWeight = weight;
         }
 
+        // ---打印部分---
         console.log(log, weight);
-    }
-    const maxWeightPaths = searchPaths.filter(x=>x.weight == maxWeight);
-    const paths = [ ...paths1, ...maxWeightPaths[0], ...paths2 ];
+        // ---------
+    });
+
+    const maxWeightPaths = searchPaths.filter(x=>x.weight == maxWeight); //筛选
+    const paths = [ ...paths1, ...maxWeightPaths[0], ...paths2 ]; // 合并路径
+
+    // ---打印部分---
     console.log(maxWeightPaths);
+    // ---------
+
     return paths;
 }
