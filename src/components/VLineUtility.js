@@ -31,7 +31,8 @@ function IsLineEdge(pt1, pt2, rect){
         if(pt1.x == l || pt1.x == r){
             // 贴边
             let { min, max } = FindMinMax(pt1.y, pt2.y);
-            if(min < t && t < max || min < b && b < max) return true;
+            if(max <= t || min >= b) return false;
+            return true;
         }
         return false;
     }
@@ -40,7 +41,8 @@ function IsLineEdge(pt1, pt2, rect){
         if(pt1.y == t || pt1.y == b){
             // 贴边
             let { min, max } = FindMinMax(pt1.x, pt2.x);
-            if(min < l && l < max || min < r && r < max) return true;
+            if(max <= l || min >= r) return false;
+            return true;
         }
         return false;
     }
@@ -197,7 +199,7 @@ function Get4Points(rect) {
             if(xdir == "l") return x1;
             if(xdir == "r") return x2;
         }
-        else if(pt => pt.y == x3.y && x3.x < pt.x && pt.x < x4.x){
+        else if(pt.y == x3.y && x3.x < pt.x && pt.x < x4.x){
             // 下
             if(xdir == "l") return x3;
             if(xdir == "r") return x4;
@@ -227,7 +229,7 @@ function Get4Points(rect) {
         let pt = from;
         while(pt != to){
             paths.push(pt);
-            pt = this.getNext(pt, dir);
+            pt = arr.getNext(pt, dir);
         }
 
         return paths;
@@ -347,7 +349,7 @@ export function GetPaths(rect1, pt1, rect2, pt2){
                 console.log('找到多条最短路径');
             }
         }else{
-            shortestPath = [];
+            shortestPath = { paths: [], rect: tmpRect, pt: pt2 };
         }
 
         if(shortestPath == null){
@@ -360,7 +362,9 @@ export function GetPaths(rect1, pt1, rect2, pt2){
         }
         else{
             if(!IsRectIntersect(tmpRect, rect1)){
-                paths2 = shortestPath.reverse();
+                paths2 = shortestPath.paths.reverse();
+                tmpRect = shortestPath.rect;
+                pt2 = shortestPath.pt;
                 break;
             }
         }
