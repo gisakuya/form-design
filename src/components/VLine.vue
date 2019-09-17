@@ -6,7 +6,7 @@
 </template>
 
 <script>
-import { GetPaths } from "./VLineUtility";
+import { GetPath, GetPathRect } from "./VLineUtility";
 
 export default {
     name: 'VLine',
@@ -46,19 +46,25 @@ export default {
         },
         paint: function(){
             const mouse = this.mouse;
-            // 计算坐标原点
-            this.x = Math.min(mouse.x0, mouse.x1);
-            this.y = Math.min(mouse.y0, mouse.y1);
 
-            // 计算长宽
-            this.w = Math.abs(mouse.x1 - mouse.x0);
-            this.h = Math.abs(mouse.y1 - mouse.y0);
+            // 计算路径
+            const from = { x: mouse.x0 , y: mouse.y0  }; // 起点
+            const to = { x: mouse.x1,  y: mouse.y1  };  // 终点
+            let paths = null;
+            if(this.dest){
+                const rectFrom = this.source.el.getRect();
+                const rectTo = this.dest.el.getRect();
+                paths = GetPath(rectFrom, from, rectTo, to);
+            }
+            else{
+                paths = [ from, to ];
+            }
 
-            // 扩大画布的面积，使之包围里面的图形
-            this.x -= 10;
-            this.y -= 10;
-            this.h += 100;
-            this.w += 100;
+            const pathRect = GetPathRect(paths);
+            this.x = pathRect.l - 10;
+            this.y = pathRect.t - 10;
+            this.w = pathRect.w + 20;
+            this.h = pathRect.h + 20;
 
             this.$nextTick(()=>{
                 let ctx = this.context;
@@ -66,19 +72,6 @@ export default {
                 ctx.beginPath();
                 ctx.lineWidth = this.width;     // 线条粗细
                 ctx.strokeStyle= this.isActive ? "red" : this.color;    // 线条颜色
-
-                const from = { x: mouse.x0 , y: mouse.y0  }; // 起点
-                const to = { x: mouse.x1,  y: mouse.y1  };  // 终点
-
-                let paths = null;
-                if(this.dest){
-                    const rectFrom = this.source.el.getRect();
-                    const rectTo = this.dest.el.getRect();
-                    paths = GetPaths(rectFrom, from, rectTo, to);
-                }
-                else{
-                    paths = [ from, to ];
-                }
 
                 for (let i = 0; i < paths.length; i++) {
                     const path = paths[i];

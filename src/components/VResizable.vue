@@ -59,19 +59,19 @@ export default {
         getDotPos: function(dot){
             if(dot == "tc"){
                 // 上中
-                return { x: this.x + this.realW/2, y: this. y };
+                return { x: this.x + this.$el.offsetWidth/2, y: this. y };
             }
             else if(dot == "bc"){
                 // 下中
-                return { x: this.x + this.realW/2, y: this.y+this.realH };
+                return { x: this.x + this.$el.offsetWidth/2, y: this.y+this.$el.offsetHeight };
             }
             else if(dot == "lc"){
                 // 左中
-                return { x: this.x, y: this.y + this.realH/2 };
+                return { x: this.x, y: this.y + this.$el.offsetHeight/2 };
             }
             else if(dot == "rc"){
                 // 右中
-                return { x: this.x + this.realW, y: this.y + this.realH/2 };
+                return { x: this.x + this.$el.offsetWidth, y: this.y + this.$el.offsetHeight/2 };
             }
             else if(dot == "tl"){
                 // 左上角（左中+上中）
@@ -79,19 +79,19 @@ export default {
             }
             else if(dot == "tr"){
                 // 右上角(右中+上中)
-                return { x: this.x + this.realW, y: this.y };
+                return { x: this.x + this.$el.offsetWidth, y: this.y };
             }
             else if(dot == "lb"){
                 // 左下角(左中+下中)
-                return { x: this.x, y: this.y + this.realH };
+                return { x: this.x, y: this.y + this.$el.offsetHeight };
             }
             else if(dot == "rb"){
                 // 右下角(右中+下中)
-                return { x: this.x + this.realW, y: this.y + this.realH };
+                return { x: this.x + this.$el.offsetWidth, y: this.y + this.$el.offsetHeight };
             }
         },
         getRect: function(){
-            return { l: this.x, t: this.y, w: this.realW, h: this.realH };
+            return { l: this.x, t: this.y, w: this.$el.offsetWidth, h: this.$el.offsetHeight };
         }
     },
     computed: {
@@ -237,13 +237,18 @@ export default {
 
             let ox = ev.x - mouse.x;
             let oy = ev.y - mouse.y;
-            mouse.handler(ox, oy);
-            mouse.x = ev.x;
-            mouse.y = ev.y;
+            
+            if(ox >= 10 || oy >= 10 || ox <= -10 || oy <= -10){
+                // 每次平移10个像素
+                
+                mouse.handler(ox, oy);
+                mouse.x = ev.x;
+                mouse.y = ev.y;
 
-            this.$nextTick(() => {
-                this.$emit("DotPosChanged");
-            });
+                this.$nextTick(() => {
+                    this.$emit("DotPosChanged");
+                });
+            }
         })
 
         document.addEventListener("mouseup", () => {
