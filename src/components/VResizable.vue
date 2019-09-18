@@ -29,10 +29,28 @@
 </template>
 
 <script>
+// 对数进行取整
+function QuZheng(val){
+    return Math.round(val/10)*10;
+}
+
 var mouse = {
     x: 0,
     y: 0,
-    handler: (ox, oy)=>{},
+    data: null,
+    handler: (x, y)=>{},
+    setPos: function(pos){
+        this.x = pos.x;
+        this.y = pos.y;
+    },
+    setData: function(data){
+        this.data = data;
+    },
+    isOffsetGreaterThan(ev, offset){
+        const ox = ev.x - this.x;
+        const oy = ev.y - this.y;
+        return ox >= offset || ox <= offset || oy >= offset || oy <= offset;
+    }
 }
 
 export default {
@@ -53,8 +71,8 @@ export default {
     },
     methods: {
         setPos: function(pos){
-            this.x = pos.x;
-            this.y = pos.y;
+            this.x = QuZheng(pos.x);
+            this.y = QuZheng(pos.y);
         },
         getDotPos: function(dot){
             if(dot == "tc"){
@@ -114,15 +132,15 @@ export default {
             let dot = dots[i];
             if(dot.id == "tc"){
                 // 上中
-                dot.handler = (ox, oy) => {
-                    this.h = this.realH - oy;
-                    this.y += oy;
+                dot.handler = (x, y) => {
+                    this.h = mouse.data.orgH - (y - mouse.data.y);
+                    this.y = mouse.data.orgY + (y - mouse.data.y);
                 };
             }
             else if(dot.id == "bc"){
                 // 下中
-                dot.handler = (ox, oy) => {
-                    this.h = this.realH + oy;
+                dot.handler = (x, y) => {
+                    this.h = QuZheng(mouse.data.orgH + y - mouse.data.y);
                 };
             }
             else if(dot.id == "lc"){
@@ -134,8 +152,8 @@ export default {
             }
             else if(dot.id == "rc"){
                 // 右中
-                dot.handler = (ox, oy) => {
-                    this.w = this.realW + ox;
+                dot.handler = (x, y) => {
+                    this.w = QuZheng(mouse.data.orgW + x - mouse.data.x);
                 };
             }
             else if(dot.id == "tl"){
@@ -181,10 +199,8 @@ export default {
                         return;
                     }
 
-                    mouse.x = ev.x;
-                    mouse.y = ev.y;
+                    mouse.setData({ orgW: this.realW, orgH: this.realH, orgX: this.x, orgY: this.y, x: ev.x, y: ev.y });
                     mouse.handler = ev.currentTarget.handler;
-                    mouse.srcitem = ev.currentTarget;
 
                     this.dragging = true;
                     ev.stopPropagation();
@@ -203,18 +219,16 @@ export default {
             });
         }
 
-        el.handler = (ox, oy)=> {
-            this.x += ox;
-            this.y += oy;
+        el.handler = (x, y)=> {
+            this.x = QuZheng(x - mouse.data.offsetX);
+            this.y = QuZheng(y - mouse.data.offsetY);
         };
 
         el.addEventListener("mousedown", ev => {
             if(ev.button == 0){
                 // 鼠标左键
-                mouse.x = ev.x;
-                mouse.y = ev.y;
+                mouse.setData({ offsetX: ev.x - this.x, offsetY: ev.y - this.y });
                 mouse.handler = ev.currentTarget.handler;
-                mouse.srcitem = ev.currentTarget;
                 
                 this.dragging = true;
                 ev.stopPropagation();
@@ -235,15 +249,10 @@ export default {
         document.addEventListener("mousemove", ev => {
             if(!this.dragging) return;            
 
-            let ox = ev.x - mouse.x;
-            let oy = ev.y - mouse.y;
-            
-            if(ox >= 10 || oy >= 10 || ox <= -10 || oy <= -10){
+            if(mouse.isOffsetGreaterThan(ev, 10)){
                 // 每次平移10个像素
-                
-                mouse.handler(ox, oy);
-                mouse.x = ev.x;
-                mouse.y = ev.y;
+                mouse.handler(ev.x, ev.y);
+                mouse.setPos(ev);
 
                 this.$nextTick(() => {
                     this.$emit("DotPosChanged");

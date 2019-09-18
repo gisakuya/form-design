@@ -1,3 +1,5 @@
+import orderBy from "lodash/orderBy";
+
 const DEBUG = false;
 
 // 矩形是否有交集（贴边不算）
@@ -312,42 +314,79 @@ function SearchPath(ptSrc, ptDest){
     return paths;
 }
 
-// 查找点pt1到点pt2的“最优”路径
-export function GetPath(rect1, pt1, rect2, pt2){
+// 计算路径像素长度
+function CalcPathPXLen(path){
+    let sum = 0;
+    for (let i = 0; i < path.length-1; i++) {
+        const pt = path[i];
+        const npt = path[i+1];
+        sum += Math.abs(npt.x - pt.x) + Math.abs(npt.y-pt.y);
+    }
+    return sum;
+}
+
+// 获取路径与矩形边缘重叠的数量
+function CalcPathEdgeCount(path, rect){
+    let sum = 0;
+    for (let i = 0; i < path.length-1; i++) {
+        const pt = path[i];
+        const npt = path[i+1];
+        if(IsLineEdge(pt, npt, rect)){
+            sum++;
+        }
+    }
+    return sum;
+}
+
+function GetPath1(rect1, pt1, rect2, pt2)
+{
     const points1 = Get4Points(rect1);
     const points2 = Get4Points(rect2);
 
-    let paths1 = [];
-    let paths2 = [];
-    let tmpRect = null;
-
     let srcPoints = [ pt1, ...points1 ];
     let destPoints = [ pt2, ...points2 ];
-    let candidatePaths = [];
+    let candidates = [];
 
     // 25次循环
     let found = false;
-    for (let i = 0; found || i < srcPoints.length; i++) {
+    for (let i = 0; !found && i < srcPoints.length; i++) {
         const srcPt = srcPoints[i];
-        for (let j = 0; found || j < destPoints.length; j++) {
+        for (let j = 0; !found && j < destPoints.length; j++) {
             const destPt = destPoints[j];
 
             const jcRect = GetRect(srcPt, destPt);
-            if(IsRectIntersect(jcRect, rect1) || IsRectIntersect(jcRect, rect2)) continue;
+            if(IsRectIntersect(jcRect, rect2) || IsRectIntersect(jcRect, rect1)) continue;
 
             const srcPath = points1.getPath(pt1, srcPt);
             const destPath = points2.getPath(pt2, destPt);
-
-            candidatePaths.push({
-                src: { pt: srcPt, path: srcPath, rect: jcRect  },
-                dest: { pt: destPt, path: destPath, rect: jcRect }
+            
+            candidates.push({
+                src: { pt: srcPt, path: srcPath  },
+                dest: { pt: destPt, path: destPath },
+                rect: jcRect,
+                len: srcPath.length + destPath.length,
+                weight: srcPath.length*(srcPath.length+1)/2 + destPath.length*(destPath.length+1)/2,
             });
+
+            if(i == 0 && j == 0){
+                found = true;
+            }
         }
     }
 
-    let minPath = Math.min(...candidatePaths.map(x =>  ));
+    const sortedCandidates = orderBy(candidates, ['len', 'weight']);
+    const firstCandidate = sortedCandidates[0];
+    const filterCandidates = sortedCandidates.filter(x=>x.len == firstCandidate.len && x.weight == firstCandidate.weight);
+    return filterCandidates;
+}
 
-    
+function GetPath21(candidate, rect1, rect2){
+    const path1 = candidate.src.path;
+    const path2 = candidate.dest.path.reverse();
+    const tmpRect = candidate.rect;
+    let pt1 = candidate.src.pt;
+    let pt2 = candidate.dest.pt;
+
     // 根据临时矩形，获取临时矩形上的9个点
     const tmpRectPoints = Get9Points(tmpRect);
     tmpRectPoints.forEach(pt=>{
@@ -363,7 +402,7 @@ export function GetPath(rect1, pt1, rect2, pt2){
     const searchPaths = SearchPath(pt1, pt2);
 
     // 计算路径权重
-    let maxWeight = -999;
+    let maxWeight = -9999;
     searchPaths.forEach(path => {
         let weight = 0;
         let pt, npt, a, b, c;
@@ -401,20 +440,38 @@ export function GetPath(rect1, pt1, rect2, pt2){
         // ---------
     });
 
-    const maxWeightPaths = searchPaths.filter(x=>x.weight == maxWeight); //筛选
-    const paths = [ ...paths1, ...maxWeightPaths[0], ...paths2 ]; // 合并路径
-
-    // ---调试部分---
-    if(DEBUG){
-        PrintPath(paths);
-        console.log("-----------我是分割线------------");
-    }
-    // ---------
-
-    return paths;
+    const maxWeightPath = searchPaths.filter(x => x.weight == maxWeight); //筛选
+    let fullpath = [ ...path1, ...maxWeightPath[0], ...path2 ]; // 合并路径
+    fullpath.pxLen = CalcPathPXLen(fullpath); // 计算路径长度
+    fullpath.edgeCount = CalcPathEdgeCount(fullpath, rect1) + CalcPathEdgeCount(fullpath, rect2); // 计算路径与矩形边缘的重叠数
+    return fullpath;
 }
 
-// 根据路径生成矩形
+function GetPath2(candidates, rect1, rect2){
+    let fullPaths = [];
+
+    for (let i = 0; i < candidates.length; i++) {
+        const fullPath = GetPath21(candidates[i], rect1, rect2);
+        fullPaths.push(fullPath);
+        // ---调试部分---
+        if(DEBUG){
+            PrintPath(fullPath);
+            console.log("-----------我是分割线------------");
+        }
+        // ---------
+    }
+
+    const sortedFullPaths = orderBy(fullPaths, ['pxLen', 'edgeCount']);
+    return sortedFullPaths[0];
+}
+
+// 查找点pt1到点pt2的“最优”路径
+export function GetPath(rect1, pt1, rect2, pt2){
+    const candidates = GetPath1(rect1, pt1, rect2, pt2);
+    return GetPath2(candidates, rect1, rect2);
+}
+
+// 根据路径生成矩形(供外部VLine使用，用于生成画图的大小)
 export function GetPathRect(path){
     let minl = 99999, mint = 99999, maxr = -99999, maxb = -99999;
     let l, t;
