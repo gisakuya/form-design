@@ -1,30 +1,35 @@
 <template>
-  <div class="warpper" :style="{ 
-        left: x ? x + 'px' : null, 
-        top: y ? y + 'px' : null,
-        width: w ? w + 'px' : null,
-        height: h ? h + 'px' : null,
-        borderColor: isShowBorder ? '#9ed0fa' : 'transparent',
-    }"
+  <div class="warpper" :style="selfStyle"
+    @mousedown.left.stop="mouseDown($event, moveSelf);dragBegin()"
+    @mouseenter="mouseEnter"
+    @mouseleave="mouseLeave"
   >
       <slot></slot>
-      <div v-if="isShowBorder" class="layer"></div>
+      <div v-show="isShowBorder" class="layer"></div>
       <!-- 左上角 -->
-      <div id="tl" class="ctl-dot tl" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
+      <div class="ctl-dot tl" :class="dotCls" v-show="isShowBorder"
+            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftUp);dragBegin()" @click.left.stop="dotClick($event, 'tl')"></div>
       <!-- 右上角 -->
-      <div id="tr" class="ctl-dot tr" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
+      <div class="ctl-dot tr" :class="dotCls" v-show="isShowBorder" 
+            @mousedown.left.stop="dotMouseDown($event, dotMoveRightUp);dragBegin()" @click.left.stop="dotClick($event, 'tr')"></div>
       <!-- 左下角 -->
-      <div id="lb" class="ctl-dot lb" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
+      <div class="ctl-dot lb" :class="dotCls" v-show="isShowBorder"
+            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftDown);dragBegin()" @click.left.stop="dotClick($event, 'lb')"></div>
       <!-- 右下角 -->
-      <div id="rb" class="ctl-dot rb" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
+      <div class="ctl-dot rb" :class="dotCls" v-show="isShowBorder" 
+            @mousedown.left.stop="dotMouseDown($event, dotMoveRightDown);dragBegin()" @click.left.stop="dotClick($event, 'rb')"></div>
       <!-- 上中 -->
-      <div id="tc" class="ctl-dot tc" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
+      <div class="ctl-dot tc" :class="dotCls" v-show="isShowBorder"
+            @mousedown.left.stop="dotMouseDown($event, dotMoveUp);dragBegin()" @click.left.stop="dotClick($event, 'tc')"></div>
       <!-- 下中 -->
-      <div id="bc" class="ctl-dot bc" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
+      <div class="ctl-dot bc" :class="dotCls" v-show="isShowBorder"
+            @mousedown.left.stop="dotMouseDown($event, dotMoveDown);dragBegin()" @click.left.stop="dotClick($event, 'bc')"></div>
       <!-- 左中 -->
-      <div id="lc" class="ctl-dot lc" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
+      <div class="ctl-dot lc" :class="dotCls" v-show="isShowBorder"
+            @mousedown.left.stop="dotMouseDown($event, dotMoveLeft);dragBegin()" @click.left.stop="dotClick($event, 'lc')"></div>
       <!-- 右中 -->
-      <div id="rc" class="ctl-dot rc" :class="{ 'connect-mode': connectMode }" v-show="isShowBorder"></div>
+      <div class="ctl-dot rc" :class="dotCls" v-show="isShowBorder"
+            @mousedown.left.stop="dotMouseDown($event, dotMoveRight);dragBegin()" @click.left.stop="dotClick($event, 'rc')"></div>
   </div>
 </template>
 
@@ -38,7 +43,7 @@ var mouse = {
     x: 0,
     y: 0,
     data: null,
-    handler: (x, y)=>{},
+    handler: ()=>{},
     setPos: function(pos){
         this.x = pos.x;
         this.y = pos.y;
@@ -70,6 +75,7 @@ export default {
         connectMode: Boolean
     },
     methods: {
+        // 供外部使用
         setPos: function(pos){
             this.x = QuZheng(pos.x);
             this.y = QuZheng(pos.y);
@@ -77,19 +83,19 @@ export default {
         getDotPos: function(dot){
             if(dot == "tc"){
                 // 上中
-                return { x: this.x + this.$el.offsetWidth/2, y: this. y };
+                return { x: this.x + this.realW()/2, y: this. y };
             }
             else if(dot == "bc"){
                 // 下中
-                return { x: this.x + this.$el.offsetWidth/2, y: this.y+this.$el.offsetHeight };
+                return { x: this.x + this.realW()/2, y: this.y + this.realH() };
             }
             else if(dot == "lc"){
                 // 左中
-                return { x: this.x, y: this.y + this.$el.offsetHeight/2 };
+                return { x: this.x, y: this.y + this.realH()/2 };
             }
             else if(dot == "rc"){
                 // 右中
-                return { x: this.x + this.$el.offsetWidth, y: this.y + this.$el.offsetHeight/2 };
+                return { x: this.x + this.realW(), y: this.y + this.realH()/2 };
             }
             else if(dot == "tl"){
                 // 左上角（左中+上中）
@@ -97,180 +103,160 @@ export default {
             }
             else if(dot == "tr"){
                 // 右上角(右中+上中)
-                return { x: this.x + this.$el.offsetWidth, y: this.y };
+                return { x: this.x + this.realW(), y: this.y };
             }
             else if(dot == "lb"){
                 // 左下角(左中+下中)
-                return { x: this.x, y: this.y + this.$el.offsetHeight };
+                return { x: this.x, y: this.y + this.realH() };
             }
             else if(dot == "rb"){
                 // 右下角(右中+下中)
-                return { x: this.x + this.$el.offsetWidth, y: this.y + this.$el.offsetHeight };
+                return { x: this.x + this.realW(), y: this.y + this.realH() };
             }
         },
         getRect: function(){
-            return { l: this.x, t: this.y, w: this.$el.offsetWidth, h: this.$el.offsetHeight };
-        }
-    },
-    computed: {
-        realW: function() {
-            return this.w ? this.w : this.$el.offsetWidth;
+            return { l: this.x, t: this.y, w: this.realW(), h: this.realH() };
         },
-        realH: function() {
-            return this.h ? this.h : this.$el.offsetHeight;
+        exportConfig: function(){
+            return { class: "VResizeable", left: this.x, top: this.y, width: this.w, height: this.h };
         },
-        isShowBorder: function(){
-            return this.connectMode || this.showBorderInner;
-        }
-    },
-    mounted: function() {
-        const el = this.$el;
+        loadConfig: function(cfg){
+            this.x = cfg.left;
+            this.y = cfg.top;
+            this.w = cfg.width;
+            this.h = cfg.height;
+        },
 
-        // 初始化控制按钮
-        let dots = el.getElementsByClassName("ctl-dot");
-        for(let i = 0; i < dots.length; i++){
-            let dot = dots[i];
-            if(dot.id == "tc"){
-                // 上中
-                dot.handler = (x, y) => {
-                    this.h = mouse.data.orgH - (y - mouse.data.y);
-                    this.y = mouse.data.orgY + (y - mouse.data.y);
-                };
-            }
-            else if(dot.id == "bc"){
-                // 下中
-                dot.handler = (x, y) => {
-                    this.h = QuZheng(mouse.data.orgH + y - mouse.data.y);
-                };
-            }
-            else if(dot.id == "lc"){
-                // 左中
-                dot.handler = (ox, oy) => {
-                    this.w = this.realW - ox;
-                    this.x += ox;
-                };
-            }
-            else if(dot.id == "rc"){
-                // 右中
-                dot.handler = (x, y) => {
-                    this.w = QuZheng(mouse.data.orgW + x - mouse.data.x);
-                };
-            }
-            else if(dot.id == "tl"){
-                // 左上角（左中+上中）
-                dot.handler = (ox, oy) => {
-                    this.w = this.realW - ox;
-                    this.x += ox;
-                    this.h = this.realH - oy;
-                    this.y += oy;
-                };
-            }
-            else if(dot.id == "tr"){
-                // 右上角(右中+上中)
-                dot.handler = (ox, oy) => {
-                    this.w = this.realW + ox;
-                    this.h = this.realH - oy;
-                    this.y += oy;
-                };
-            }
-            else if(dot.id == "lb"){
-                // 左下角(左中+下中)
-                dot.handler = (ox, oy) => {
-                    this.w = this.realW - ox;
-                    this.x += ox;
-                    this.h = this.realH + oy;
-                };
-            }
-            else if(dot.id == "rb"){
-                // 右下角(右中+下中)
-                dot.handler = (ox, oy) => {
-                    this.w = this.realW + ox;
-                    this.h = this.realH + oy;
-                };
-            }
-
-            dot.addEventListener("mousedown", ev => {
-                if(ev.button == 0){
-                    // 鼠标左键
-                    this.$emit('DotMouseDown', el, ev.srcElement.id);
-
-                    if(this.connectMode){
-                        ev.stopPropagation();
-                        return;
-                    }
-
-                    mouse.setData({ orgW: this.realW, orgH: this.realH, orgX: this.x, orgY: this.y, x: ev.x, y: ev.y });
-                    mouse.handler = ev.currentTarget.handler;
-
-                    this.dragging = true;
-                    ev.stopPropagation();
-                    
-                    this.isActive = true;  // 激活
-                    this.showBorderInner = true;// 显示边框
-                    
-                    // 设置鼠标样式
-                    document.body.style.cursor = getComputedStyle(ev.currentTarget).cursor;
-                }
-            });
-
-            dot.addEventListener("click", ev => {
-                this.$emit('DotClick', this, ev.srcElement.id);
-                ev.stopPropagation();
-            });
-        }
-
-        el.handler = (x, y)=> {
-            this.x = QuZheng(x - mouse.data.offsetX);
-            this.y = QuZheng(y - mouse.data.offsetY);
-        };
-
-        el.addEventListener("mousedown", ev => {
-            if(ev.button == 0){
-                // 鼠标左键
-                mouse.setData({ offsetX: ev.x - this.x, offsetY: ev.y - this.y });
-                mouse.handler = ev.currentTarget.handler;
-                
-                this.dragging = true;
-                ev.stopPropagation();
-            }
-
-            this.isActive = true;  // 激活
+        // 供内部使用
+        realW: function(){
+            return this.$el.offsetWidth;
+        },
+        realH: function(){
+            return this.$el.offsetHeight;
+        },
+        dragBegin: function(){
+            this.dragging = true;       // 拖曳生效
+            this.isActive = true;       // 激活
             this.showBorderInner = true;// 显示边框
-        })
+        },
 
-        el.addEventListener("mouseenter", ev => {
+        // Dot
+        dotClick: function(ev, name){
+            this.$emit('DotClick', this, name);
+        },
+        dotMouseDown: function(ev, handler){
+            if(this.connectMode) return;
+
+            // 记录鼠标初始值
+            mouse.setData({ orgW: this.w, orgH: this.h, orgX: this.x, orgY: this.y, x: ev.x, y: ev.y });
+            mouse.handler = handler;
+
+            // 设置鼠标样式
+            document.body.style.cursor = getComputedStyle(ev.currentTarget).cursor;
+        },
+
+        // Self
+        mouseEnter: function(){
             this.showBorderInner = true;
-        })
+        },
+        mouseLeave: function(){
+            if(!this.isActive)  this.showBorderInner = false 
+        },
+        mouseDown: function(ev, handler){
+            // 记录鼠标初始值
+            mouse.setData({ offsetX: ev.x - this.x, offsetY: ev.y - this.y });
+            mouse.handler = handler;
+        },
 
-        el.addEventListener("mouseleave", ev => {
-            if(!this.isActive) this.showBorderInner = false;
-        })
+        // Document
+        docMouseMove: function(ev){
+            if(!this.dragging) return;
+            if(!mouse.isOffsetGreaterThan(ev, 10)) return;
 
-        document.addEventListener("mousemove", ev => {
-            if(!this.dragging) return;            
+            mouse.handler(ev.x, ev.y);
+            mouse.setPos(ev);
 
-            if(mouse.isOffsetGreaterThan(ev, 10)){
-                // 每次平移10个像素
-                mouse.handler(ev.x, ev.y);
-                mouse.setPos(ev);
-
-                this.$nextTick(() => {
-                    this.$emit("DotPosChanged");
-                });
-            }
-        })
-
-        document.addEventListener("mouseup", () => {
+            this.$nextTick(() => this.$emit("DotPosChanged"));
+        },
+        docMouseUp: function(){
             if(!this.dragging){
                 this.isActive = false;
                 this.showBorderInner = false;
             }
-
             this.dragging = false;
+
             // 还原鼠标样式
             document.body.style.cursor = "";
-        })
+        },
 
+        // 放大缩小事件
+        dotMoveUp: function(x, y){
+            this.y = QuZheng(mouse.data.orgY + (y - mouse.data.y)); // y + oy
+            this.h = (mouse.data.orgY + mouse.data.orgH) - this.y;  // b - y
+        },
+        dotMoveDown: function(x, y){
+            this.h = QuZheng(mouse.data.orgH + y - mouse.data.y);   // h + oy
+        },
+        dotMoveLeft: function(x, y){
+            this.x = QuZheng(mouse.data.orgX + x - mouse.data.x);   // x + ox
+            this.w = (mouse.data.orgX + mouse.data.orgW) - this.x;  // r - x;
+        },
+        dotMoveRight: function(x, y){
+            this.w = QuZheng(mouse.data.orgW + x - mouse.data.x);   // w + ox
+        },
+        dotMoveLeftUp: function(x, y){
+            this.dotMoveLeft(x, y);
+            this.dotMoveUp(x, y);
+        },
+        dotMoveRightUp: function(x, y){
+            this.dotMoveRight(x, y);
+            this.dotMoveUp(x, y);
+        },
+        dotMoveLeftDown: function(x, y){
+            this.dotMoveLeft(x, y);
+            this.dotMoveDown(x, y);
+        },
+        dotMoveRightDown: function(x, y){
+            this.dotMoveRight(x, y);
+            this.dotMoveDown(x, y);
+        },
+        moveSelf: function(x, y){
+            this.x = QuZheng(x - mouse.data.offsetX);
+            this.y = QuZheng(y - mouse.data.offsetY);
+        }
+    },
+    computed: {
+        // 是否显示border
+        isShowBorder: function(){
+            return this.connectMode || this.showBorderInner;
+        },
+        // dot样式
+        dotCls: function(){
+            return {
+                'connect-mode': this.connectMode
+            }
+        },
+        // 本身样式
+        selfStyle: function(){
+            return { 
+                left: this.x ? this.x + 'px' : null, 
+                top: this.y ? this.y + 'px' : null,
+                width: this.w ? this.w + 'px' : null,
+                height: this.h ? this.h + 'px' : null,
+                borderColor: this.isShowBorder ? '#9ed0fa' : 'transparent',
+            };
+        }
+    },
+    mounted: function() {
+        // 初始化本身
+        this.w = QuZheng(this.$el.offsetWidth);
+        this.h = QuZheng(this.$el.offsetHeight);
+
+        // document
+        document.addEventListener("mousemove", this.docMouseMove);
+        document.addEventListener("mouseup", this.docMouseUp)
+
+        // 发送初始化完成事件
         this.$emit('init', this);
     }
 }
