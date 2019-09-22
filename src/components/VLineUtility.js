@@ -1,6 +1,4 @@
-import orderBy from "lodash/orderBy";
-
-const DEBUG = false;
+import sortBy from "lodash/sortBy";
 
 // 矩形是否有交集（贴边不算）
 function IsRectIntersect(rect1, rect2){
@@ -63,28 +61,23 @@ function Get9Points(rect) {
     const b = t + h;
     const hc = l + w/2;
     const vc = t + h/2;
+    const rn = rect.name ? rect.name + "-" : "";
 
-    let x1 = { x: l, y: t };
-    let x2 = { x: hc, y: t };
-    let x3 = { x: r, y: t };
-    let x4 = { x: l, y: vc };
-    let x5 = { x: hc, y: vc, isCenter: true };
-    let x6 = { x: r, y: vc };
-    let x7 = { x: l, y: b };
-    let x8 = { x: hc, y: b };
-    let x9 = { x: r, y: b };
+    let x1 = { x: l, y: t, name: rn + "x1" };
+    let x2 = { x: hc, y: t, name: rn + "x2" };
+    let x3 = { x: r, y: t, name: rn + "x3" };
+    let x4 = { x: l, y: vc, name: rn + "x4" };
+    let x5 = { x: hc, y: vc, name: rn + "x5" };
+    let x6 = { x: r, y: vc, name: rn + "x6" };
+    let x7 = { x: l, y: b, name: rn + "x7" };
+    let x8 = { x: hc, y: b, name: rn + "x8" };
+    let x9 = { x: r, y: b, name: rn + "x9" };
 
     if(h == 0 && w > 0){
-        x1.r = x2;
-        x2.l = x1; x2.r = x3; 
-        x3.l = x2;
         return [ x1, x2, x3 ];
     }
 
     if(h > 0 && w == 0){
-        x1.b = x4;
-        x4.t = x1; x4.b = x7;
-        x7.t = x4;
         return [ x1, x4, x7 ];
     }
 
@@ -93,16 +86,6 @@ function Get9Points(rect) {
     }
 
     // h > 0 && w > 0
-    x1.r = x2; x1.b = x4;
-    x2.l = x1; x2.r = x3; x2.b = x5;
-    x3.l = x2; x3.b = x6;
-    x4.t = x1; x4.b = x7; x4.r = x5;
-    x5.l = x4; x5.t = x2; x5.r = x6; x5.b = x8;
-    x6.t = x3; x6.l = x5; x6.b = x9;
-    x7.t = x4; x7.r = x8;
-    x8.l = x7; x8.t = x5; x8.r = x9;
-    x9.l = x8; x9.t = x6;
-
     return [ x1, x2, x3, x4, x5, x6, x7, x8, x9 ];
 }
 
@@ -117,136 +100,30 @@ function Get4Points(rect) {
     const { l, t, w, h } = rect;
     const r = l + w;
     const b = t + h;
+    const rn = rect.name ? rect.name + "-" : "";
 
-    let x1 = { x: l, y: t, name: "x1" };
-    let x2 = { x: r, y: t, name: "x2" };
-    let x3 = { x: l, y: b, name: "x3" };
-    let x4 = { x: r, y: b, name: "x4" };
-
-    let arr = null;
+    let x1 = { x: l, y: t, name: rn+"x1" };
+    let x2 = { x: r, y: t, name: rn+"x2" };
+    let x3 = { x: l, y: b, name: rn+"x3" };
+    let x4 = { x: r, y: b, name: rn+"x4" };
 
     if(h == 0 && w > 0){
-        arr = [ x1, x2 ];
+        return [ x1, x2 ];
     }
 
     if(h > 0 && w == 0){
-        arr = [ x1, x3 ];
+        return [ x1, x3 ];
     }
 
     if(h == 0 && w == 0){
-        arr = [ x1 ];
+        return [ x1 ];
     }
 
-    if(h > 0 && w > 0){
-        arr = [ x1, x2, x3, x4 ];
-    }
-
-    // 获取pt的下一个点（顺时针）
-    arr.getNextR = pt => {
-        if(pt.x == x1.x && pt.y == x1.y){
-            return x2;
-        }
-        else if(pt.x == x2.x && pt.y == x2.y){
-            return x4;
-        }
-        else if(pt.x == x3.x && pt.y == x3.y){
-            return x1;
-        }
-        else if(pt.x == x4.x && pt.y == x4.y){
-            return x3;
-        }
-        else if(pt.y == x1.y && x1.x < pt.x && pt.x < x2.x){
-            // 上
-            return x2;
-        }
-        else if(pt.y == x3.y && x3.x < pt.x && pt.x < x4.x){
-            // 下
-            return x3;
-        }
-        else if(pt.x == x1.x && x1.y < pt.y && pt.y < x3.y){
-            // 左
-            return x1;
-        }
-        else if(pt.x == x2.x && x2.y < pt.y && pt.y < x4.y){
-            // 右
-            return x4;
-        }
-
-        return null;
-    };
-
-    // 获取点pt的下一个点（根据dir方向）
-    arr.getNextDir = (pt,dir)=>{
-        let [xdir, ydir] = dir;
-
-        if(pt.x == x1.x && pt.y == x1.y){
-            // x1
-            if(xdir == "r") return x2;
-            if(ydir == "b") return x3;
-        }
-        else if(pt.x == x2.x && pt.y == x2.y){
-            // x2
-            if(xdir == "l") return x1;
-            if(ydir == "b") return x4;
-        }
-        else if(pt.x == x3.x && pt.y == x3.y){
-            // x3
-            if(xdir == "r") return x4;
-            if(ydir == "t") return x1;
-        }
-        else if(pt.x == x4.x && pt.y == x4.y){
-            // x4
-            if(xdir == "l") return x3;
-            if(ydir == "t") return x2;
-        }
-        else if(pt.y == x1.y && x1.x < pt.x && pt.x < x2.x){
-            // 上
-            if(xdir == "l") return x1;
-            if(xdir == "r") return x2;
-        }
-        else if(pt.y == x3.y && x3.x < pt.x && pt.x < x4.x){
-            // 下
-            if(xdir == "l") return x3;
-            if(xdir == "r") return x4;
-        }
-        else if(pt.x == x1.x && x1.y < pt.y && pt.y < x3.y){
-            // 左
-            if(ydir == "t") return x1;
-            if(ydir == "b") return x3;
-        }
-        else if(pt.x == x2.x && x2.y < pt.y && pt.y < x4.y){
-            // 右
-            if(ydir == "t") return x2;
-            if(ydir == "b") return x4;
-        }
-
-        return null;
-    };
-
-    // 获取从form到to的路径
-    arr.getPath = (from, to) => {
-        if(from.x == to.x && from.y == to.y) return [];
-
-        // 判断to在from的哪个方向
-        let xdir = to.x > from.x ? "r" : to.x < from.x ? "l" : "=";
-        let ydir = to.y > from.y ? "b" : to.y < from.y ? "t" : "=";
-        let dir = xdir+ydir;
-        
-        let path = []; // 存储路径的数组
-        let pt = from;  // 起始点
-        while(pt != to){
-            path.push(pt);
-            pt = arr.getNextDir(pt, dir);
-        }
-
-        return path;
-    };
-
-    return arr;
+    return [ x1, x2, x3, x4 ];
 }
 
 // 根据2个点，构建一个矩形
-function GetRect(pt1, pt2){
+function GetRect(pt1, pt2, name){
     let l = 0, t = 0, w = 0, h = 0;
     if(pt1.x <= pt2.x){
         l = pt1.x;
@@ -266,29 +143,51 @@ function GetRect(pt1, pt2){
         h = pt1.y - pt2.y;
     }
 
-    return { l, t, w, h };
+    return { l, t, w, h, name: name };
+}
+
+// 查找ptSrc到ptDest的第一条路径
+function SearchOnePath(ptSrc, ptDest){
+    if(ptSrc.x == ptDest.x && ptSrc.y == ptDest.y) return [];
+
+    // 查找目标方向
+    const xdir = ptSrc.x < ptDest.x ? 'r' : ptSrc.x > ptDest.x ? 'l' : '';
+    const ydir = ptSrc.y < ptDest.y ? 'b' : ptSrc.y > ptDest.y ? 't' : '';
+    const direction = xdir + ydir;
+
+    let rtn = null;
+    let queue = [];
+    let loopPath = pt => {
+        queue.push(pt);
+        let found = pt == ptDest;
+        if(found){
+            rtn = queue.slice();
+        }
+        else{
+            for(let key in pt){
+                if(rtn) break;
+                if("ltrb".includes(key)){
+                    if(direction && !direction.includes(key)) continue;
+                    let nextPt = pt[key];
+                    loopPath(nextPt);
+                    queue.pop();
+                }
+            }
+        }
+    };
+    loopPath(ptSrc);
+    queue.pop();
+    return rtn;
 }
 
 // 查找ptSrc到ptDest的所有可能路径
 function SearchPath(ptSrc, ptDest){
+    if(ptSrc.x == ptDest.x && ptSrc.y == ptDest.y) return [];
+
     // 查找目标方向
-    let direction = "";
-    if(ptSrc.x < ptDest.x){
-        // 目标在右边
-        direction += "r";
-    }
-    else if(ptSrc.x > ptDest.x){
-        // 目标在左边
-        direction += "l";
-    }
-    if(ptSrc.y < ptDest.y){
-        // 目标在下方
-        direction += "b";
-    }
-    else if(ptSrc.y > ptDest.y){
-        // 目标在上方
-        direction += "t";
-    }
+    const xdir = ptSrc.x < ptDest.x ? 'r' : ptSrc.x > ptDest.x ? 'l' : '';
+    const ydir = ptSrc.y < ptDest.y ? 'b' : ptSrc.y > ptDest.y ? 't' : '';
+    const direction = xdir + ydir;
 
     let paths = [];
     let queue = [];
@@ -312,6 +211,37 @@ function SearchPath(ptSrc, ptDest){
     loopPath(ptSrc);
     queue.pop();
     return paths;
+}
+
+// 建立点与点之间的关系
+function BuildPointRelation(points){
+    let sortPoints = sortBy(points, ['x']);
+    for (let i = 0; i < sortPoints.length; i++) {
+        let pt = sortPoints[i];
+        for (let j = i+1; j < sortPoints.length; j++) {
+            let npt = sortPoints[j];
+            if(npt.y == pt.y){
+                // 同一水平线
+                pt.r = npt;
+                npt.l = pt;
+                break;
+            }
+        }
+    }
+
+    sortPoints = sortBy(points, ['y']);
+    for (let i = 0; i < sortPoints.length; i++) {
+        let pt = sortPoints[i];
+        for (let j = i+1; j < sortPoints.length; j++) {
+            let npt = sortPoints[j];
+            if(npt.x == pt.x){
+                // 同一垂直线
+                pt.b = npt;
+                npt.t = pt;
+                break;
+            }
+        }
+    }
 }
 
 // 计算路径像素长度
@@ -338,35 +268,101 @@ function CalcPathEdgeCount(path, rect){
     return sum;
 }
 
-function GetPath1(rect1, pt1, rect2, pt2)
-{
-    const points1 = Get4Points(rect1);
-    const points2 = Get4Points(rect2);
+// 获取线条（垂线+水平线）的数量
+function CalcLineCount(path){
+    let sum = 0;
 
-    let srcPoints = [ pt1, ...points1 ];
-    let destPoints = [ pt2, ...points2 ];
-    let candidates = [];
+    let preLine = null; // 0：水平，1：垂直
+    for (let i = 0; i < path.length-1; i++) {
+        const pt = path[i];
+        const npt = path[i+1];
+
+        let curLine = null;
+        if(pt.y == npt.y){
+            // 水平线
+            curLine = 0;
+        }
+        else if(pt.x == npt.x){
+            // 水平线
+            curLine = 1;
+        }
+        else {
+            throw "无法判断线条类型";
+        }
+
+        if(preLine != curLine){
+            sum++;
+            preLine = curLine;
+        }
+    }
+
+    return sum;
+}
+
+// 从点集合中获取与目标点坐标相同的点
+function GetPointFromPoints(points, target){
+    for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        if(point.x == target.x && point.y == target.y){
+            return point;
+        }
+    }
+    return null;
+}
+
+// 将点和点集合合并
+function MergePointAndPoints(point, points){
+    let arr = [ point ];
+    for (let i = 0; i < points.length; i++) {
+        const pt = points[i];
+        if(pt.x == point.x && pt.y == point.y) continue;
+        arr.push(pt);
+    }
+    return arr;
+}
+
+// 查找点pt1到点pt2的“最优”路径
+export function GetPath(rect1, pt1, rect2, pt2)
+{
+    pt1.name = "rect1-pt1";
+    pt2.name = "rect2-pt2";
+
+    rect1.name = "rect1";
+    rect2.name = "rect2";
+
+
+    let srcPoints = MergePointAndPoints(pt1, Get4Points(rect1));
+    let destPoints = MergePointAndPoints(pt2, Get4Points(rect2));
+
+    // 建立关系
+    BuildPointRelation(srcPoints);
+    BuildPointRelation(destPoints);
 
     // 25次循环
+    const allPaths = [];
     let found = false;
     for (let i = 0; !found && i < srcPoints.length; i++) {
         const srcPt = srcPoints[i];
         for (let j = 0; !found && j < destPoints.length; j++) {
             const destPt = destPoints[j];
 
-            const jcRect = GetRect(srcPt, destPt);
+            const jcRect = GetRect(srcPt, destPt, `(${srcPt.name}*${destPt.name})`);
             if(IsRectIntersect(jcRect, rect2) || IsRectIntersect(jcRect, rect1)) continue;
 
-            const srcPath = points1.getPath(pt1, srcPt);
-            const destPath = points2.getPath(pt2, destPt);
-            
-            candidates.push({
-                src: { pt: srcPt, path: srcPath  },
-                dest: { pt: destPt, path: destPath },
-                rect: jcRect,
-                len: srcPath.length + destPath.length,
-                weight: srcPath.length*(srcPath.length+1)/2 + destPath.length*(destPath.length+1)/2,
-            });
+            const srcPath = SearchOnePath(pt1, srcPt);
+            srcPath.pop();
+
+            const destPath = SearchOnePath(pt2, destPt);
+            destPath.pop();
+            destPath.reverse();
+
+            const jcPoints = Get9Points(jcRect);
+            BuildPointRelation(jcPoints);
+            const jcPaths = SearchPath(GetPointFromPoints(jcPoints, srcPt), GetPointFromPoints(jcPoints, destPt));
+            for (let i = 0; i < jcPaths.length; i++) {
+                const jcPath = jcPaths[i];
+                allPaths.push([ ...srcPath, ...jcPath, ...destPath ]);
+            }
 
             if(i == 0 && j == 0){
                 found = true;
@@ -374,101 +370,36 @@ function GetPath1(rect1, pt1, rect2, pt2)
         }
     }
 
-    const sortedCandidates = orderBy(candidates, ['len', 'weight']);
-    const firstCandidate = sortedCandidates[0];
-    const filterCandidates = sortedCandidates.filter(x=>x.len == firstCandidate.len && x.weight == firstCandidate.weight);
-    return filterCandidates;
-}
-
-function GetPath21(candidate, rect1, rect2){
-    const path1 = candidate.src.path;
-    const path2 = candidate.dest.path.reverse();
-    const tmpRect = candidate.rect;
-    let pt1 = candidate.src.pt;
-    let pt2 = candidate.dest.pt;
-
-    // 根据临时矩形，获取临时矩形上的9个点
-    const tmpRectPoints = Get9Points(tmpRect);
-    tmpRectPoints.forEach(pt=>{
-        if(pt1.x == pt.x && pt1.y == pt.y){
-            pt1 = pt;
-        }
-        if(pt2.x == pt.x && pt2.y == pt.y){
-            pt2 = pt;
-        }
+    // 计算
+    allPaths.forEach(path=>{
+        path.pxLen = CalcPathPXLen(path); // 计算路径长度
+        path.edgeCount = CalcPathEdgeCount(path, rect1) + CalcPathEdgeCount(path, rect2); // 计算路径与矩形边缘的重叠数
+        path.lineCount = CalcLineCount(path);
+        path.printPath = PrintPath(path); 
     });
 
-    // 搜索路径
-    const searchPaths = SearchPath(pt1, pt2);
-
-    // 计算路径权重
-    let maxWeight = -9999;
-    searchPaths.forEach(path => {
-        let weight = 0;
-        let pt, npt, a, b, c;
-        for (let i = 0; i < path.length-1; i++) {
-            pt = path[i];
-            npt = path[i+1];
-            
-            a = IsLineEdge(pt, npt, rect1) ? -2 : 0;
-            b = IsLineEdge(pt, npt, rect2) ? -2 : 0;
-            c = npt.isCenter ? 1 : 2;
-
-            weight += a + b + c;
-
-            // ---调试部分---
-            if(DEBUG){
-                pt.lineInRect1 = a;
-                pt.lineInRect2 = b;
-                pt.lineToCenter = c;
-            }
-            // ---------
+    // 排序
+    const sortedPaths = sortBy(allPaths, ['pxLen', 'edgeCount', 'lineCount']);
+    const firstSortedPath = sortedPaths[0];
+    // --- For Debug ---
+    let samePaths = [];
+    for (let i = 0; i < sortedPaths.length; i++) {
+        const path = sortedPaths[i];
+        if(path.pxLen == firstSortedPath.pxLen && path.edgeCount == firstSortedPath.edgeCount && path.lineCount == firstSortedPath.lineCount){
+            samePaths.push(path);
         }
-
-        // 保存当前路径权重
-        path.weight = weight;
-
-        // 记录最大权重
-        if(weight > maxWeight){
-            maxWeight = weight;
+        else{
+            break;
         }
-
-        // ---调试部分---
-        if(DEBUG){
-            PrintPath(path, function(pt) { return `[${pt.lineToCenter},${pt.lineInRect1},${pt.lineInRect2}]` }, function(p){ return p.weight; });
-        }
-        // ---------
-    });
-
-    const maxWeightPath = searchPaths.filter(x => x.weight == maxWeight); //筛选
-    let fullpath = [ ...path1, ...maxWeightPath[0], ...path2 ]; // 合并路径
-    fullpath.pxLen = CalcPathPXLen(fullpath); // 计算路径长度
-    fullpath.edgeCount = CalcPathEdgeCount(fullpath, rect1) + CalcPathEdgeCount(fullpath, rect2); // 计算路径与矩形边缘的重叠数
-    return fullpath;
-}
-
-function GetPath2(candidates, rect1, rect2){
-    let fullPaths = [];
-
-    for (let i = 0; i < candidates.length; i++) {
-        const fullPath = GetPath21(candidates[i], rect1, rect2);
-        fullPaths.push(fullPath);
-        // ---调试部分---
-        if(DEBUG){
-            PrintPath(fullPath);
-            console.log("-----------我是分割线------------");
-        }
-        // ---------
     }
-
-    const sortedFullPaths = orderBy(fullPaths, ['pxLen', 'edgeCount']);
-    return sortedFullPaths[0];
-}
-
-// 查找点pt1到点pt2的“最优”路径
-export function GetPath(rect1, pt1, rect2, pt2){
-    const candidates = GetPath1(rect1, pt1, rect2, pt2);
-    return GetPath2(candidates, rect1, rect2);
+    if(samePaths.length > 1){
+        samePaths.forEach(path=>{
+            console.log(path);
+        });
+        console.log('------');
+    }
+    // --- For Debug ---
+    return firstSortedPath;
 }
 
 // 根据路径生成矩形(供外部VLine使用，用于生成画图的大小)
@@ -495,7 +426,7 @@ export function GetPathRect(path){
 }
 
 // 打印路径
-function PrintPath(path, loop, final){
+function PrintPath(path){
     let log = "";
     let dir = "";
     let pt, npt;
@@ -513,15 +444,7 @@ function PrintPath(path, loop, final){
         else{
             dir = "?";
         }
-        if(loop){
-            log += `${dir}${loop(pt, npt)} `;
-        }
-        else{
-            log += `${dir} `;
-        }
+        log += `${dir} `;
     }
-    if(final){
-        log += final(path);
-    }
-    console.log(log);
+    return log;
 }
