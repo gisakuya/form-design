@@ -375,29 +375,29 @@ export function GetPath(rect1, pt1, rect2, pt2)
         path.pxLen = CalcPathPXLen(path); // 计算路径长度
         path.edgeCount = CalcPathEdgeCount(path, rect1) + CalcPathEdgeCount(path, rect2); // 计算路径与矩形边缘的重叠数
         path.lineCount = CalcLineCount(path);
-        path.printPath = PrintPath(path); 
+        // path.printPath = PrintPath(path); // For Debug
     });
 
     // 排序
     const sortedPaths = sortBy(allPaths, ['pxLen', 'edgeCount', 'lineCount']);
     const firstSortedPath = sortedPaths[0];
     // --- For Debug ---
-    let samePaths = [];
-    for (let i = 0; i < sortedPaths.length; i++) {
-        const path = sortedPaths[i];
-        if(path.pxLen == firstSortedPath.pxLen && path.edgeCount == firstSortedPath.edgeCount && path.lineCount == firstSortedPath.lineCount){
-            samePaths.push(path);
-        }
-        else{
-            break;
-        }
-    }
-    if(samePaths.length > 1){
-        samePaths.forEach(path=>{
-            console.log(path);
-        });
-        console.log('------');
-    }
+    // let samePaths = [];
+    // for (let i = 0; i < sortedPaths.length; i++) {
+    //     const path = sortedPaths[i];
+    //     if(path.pxLen == firstSortedPath.pxLen && path.edgeCount == firstSortedPath.edgeCount && path.lineCount == firstSortedPath.lineCount){
+    //         samePaths.push(path);
+    //     }
+    //     else{
+    //         break;
+    //     }
+    // }
+    // if(samePaths.length > 1){
+    //     samePaths.forEach(path=>{
+    //         console.log(path);
+    //     });
+    //     console.log('------');
+    // }
     // --- For Debug ---
     return firstSortedPath;
 }
@@ -425,7 +425,7 @@ export function GetPathRect(path){
     return { l: minl, t: mint, w: maxr - minl, h: maxb - mint };
 }
 
-// 打印路径
+// 打印路径(调试用)
 function PrintPath(path){
     let log = "";
     let dir = "";
