@@ -1,5 +1,5 @@
 <template>
-  <el-container style="height: 800px; border: 1px solid #eee">
+  <el-container style="height: 900px; border: 1px solid #eee">
     <el-aside width="200px" style="background-color: rgb(238, 241, 246)">
       <el-menu :default-openeds="['0']">
           <el-submenu v-for="(menu, index) in menus" :key="menu.title" :index="String(index)">
@@ -18,58 +18,61 @@
         <el-switch v-model="drawLineMode" inactive-text="连线模式"></el-switch>
       </el-header>
 
-      <el-main @dragover.native="allowDrop" @drop.native="drop" @mousedown.native="mouseDown" @mousemove.native="mouseMove" @mouseup.native="mouseUp"
-          ref="mainContainer">
-        <VResizable
-            v-for="(item, index) in components" 
-            :key="item.id" 
-            :tabindex="index"
-            :connectMode="drawLineMode"
-            @init="componentInit"
-            @keyup.delete.native="componentDel(index)"
-            @DotClick="componentDotClick"
-          >
-            <component :is="item.name"></component>
-        </VResizable>
+      <el-main 
+          @dragover.native="allowDrop" 
+          @drop.native="drop" 
+          @mousedown.native="mouseDown" 
+          @mousemove.native="mouseMove" 
+          @mouseup.native="mouseUp">
 
-        <component v-for="(item, index) in shapes"
-          :is="item.name"
-          :key="item.id"
-          :tabindex="index"
-          @init="shapeInit"
-          @keyup.delete.native="shapeDel(index)" />
+          <v-runtime-template :parent="this" :template="tpl" ref="vrt"
+              style="position:relative;height: 70%;">
+          </v-runtime-template>
 
+          <div style="height: 30%;">
+            <textarea style="width: 100%; height:100%;" :value="tpl" @change="tplChange($event.target.value)"></textarea>
+          </div>
       </el-main>
     </el-container>
+    <el-aside width="250px" style="background-color: rgb(238, 241, 246);">
+      <el-menu :default-openeds="['0','1','2','3','4','6','7','8','9']">
+          <el-submenu v-for="(group, index) in cur.designProps" :key="group.title" :index="String(index)">
+            <template slot="title">
+              <i class="el-icon-edit"></i> {{ group.title }}
+            </template>
+            <table>
+              <tr v-for="prop in group.props" :key="prop.title">
+                <td style="width:60px;"><span style="margin-left:5px;font-size:14px">{{ prop.title }}</span></td>
+                <td>
+                    <input v-if="prop.name" class="el-input__inner" v-model="cur.activeCom[prop.name]"/>
+                    <input v-else class="el-input__inner"
+                      :value="prop.getVal.call(cur.activeCom)" 
+                      @change="prop.setVal.call(cur.activeCom, $event.target.value)"/>
+                  </td>
+              </tr>
+            </table>
+          </el-submenu>
+      </el-menu>
+    </el-aside>
   </el-container>
 </template>
 
 <script>
+import VRuntimeTemplate from "./VRuntimeTemplate";
 import VResizable from "./VResizable";
 import VLine from "./VLine";
 import { Promise } from 'q';
 
 let mouse = {};
-let cur = {};
-let componentIndex = 1;
-let containerOffset = { left: 0, top: 0 };
-
-let componentCreateResolve = null;
-function AfterComponentCreate(successFnt){
-      new Promise(function(resolve, reject) {
-        componentCreateResolve = resolve;
-      }).then(successFnt);
-}
-
-function GetPos(ev){
-  return { 
-      x: ev.x - containerOffset.left, 
-      y: ev.y - containerOffset.top
-  };
-}
 
 export default {
   name: "Home",
+  provide: function(){
+    return {
+        onComponentCreated: this.onComponentCreated,
+        onComponentActived: this.onComponentActived
+    }
+  },
   data() {
     return {
       menus: [
@@ -77,113 +80,99 @@ export default {
             { title: 'SUN2000-33KTL', componentName: 'nb-sun2000-33k' }, 
             { title: 'SUN2000-36KTL', componentName: 'nb-sun2000-36k' }   
           ]  
-        },
+        }
       ],
-      components: [],
-      shapes: [],
-      drawLineMode: false
+      props: [{ title: '一般属性', props:[] }],
+      drawLineMode: false,
+      tpl: `
+        <div>
+          <v-resizable ref="cmp1">
+            <nb-sun2000-36k></nb-sun2000-36k>
+          </v-resizable>
+
+          <v-resizable ref="cmp2" pos="500,150" size="200,100">
+            <nb-sun2000-36k></nb-sun2000-36k>
+          </v-resizable>
+
+          <v-line source="cmp1.rc" dest="cmp2.lc" path="0,0|100,100"></v-line>
+        </div>
+      `,
+      cur: {}
     }
   },
   methods: {
-    // 测试
-    test: function() {
+      // 人为改变模板
+      tplChange: function(val){
+        this.tpl = val;
+        this.$refs.vrt.refresh();
+      },
+ 
+      // 组件创建时
+      onComponentCreated: function(com){
+        console.log("onComponentCreated", com);
+      },
 
-    },
-    // 组件相关
-    componentInit: function(item) {
-      componentCreateResolve(item);
-    },
-    componentDel: function(i) {
-      this.components.splice(i, 1);
-    },
-
-    // 形状相关
-    shapeInit: function(item) {
-      componentCreateResolve(item);
-    },
-    shapeDel: function(i) {
-      this.shapes.splice(i, 1);
-    },
-    shapeDelLast: function(){
-      this.shapes.pop();
-    },
-
-    // 拖拉组件
-    drag: function(ev, item) {
-      mouse.offsetX = ev.offsetX;
-      mouse.offsetY = ev.offsetY;
-      ev.dataTransfer.setData("Text", item.componentName);
-
-      cur.dragComponent = true;
-    },
-    allowDrop: function(ev) {
-      if(cur.dragComponent){
-        ev.preventDefault();
-      }
-    },
-    drop: function(ev) {
-      ev.preventDefault();
-      var data = ev.dataTransfer.getData("Text");
-      this.components.push({
-        id: componentIndex++,
-        name: data,
-      });
-
-      AfterComponentCreate(item => {
-        let pos = GetPos(ev);
-        item.setPos({ x: pos.x - mouse.offsetX, y: pos.y - mouse.offsetY });
-      });
-
-      cur.dragComponent = false;
-    },
-
-    // 控制点
-    componentDotClick: function(el, dot){
-      if(this.drawLineMode){
-        if(cur.line == null){
-            this.shapes.push({
-              id: componentIndex++,
-              name: 'VLine'
-            });
-
-            AfterComponentCreate(item => {
-              item.bindSource(el, dot);
-              cur.line = item;
-            });
+      // 组件激活时
+      onComponentActived: function(com, isActived){
+        // console.log("onComponentActived", com, isActived);
+        if(isActived){
+          this.cur = {
+            activeCom: com,
+            designProps: (com.$options.designProps && com.$options.designProps.length) ? 
+                            com.$options.designProps : this.props
+          };
         }
         else{
-          cur.line.bindDest(el, dot);
+          if(this.cur.activeCom == com){
+            this.cur = {
+              designProps: this.props
+            }
+          }
+        }
+      },
+
+      // 拖拉组件
+      drag: function(ev, item) {
+        mouse.offsetX = ev.offsetX;
+        mouse.offsetY = ev.offsetY;
+        ev.dataTransfer.setData("Text", item.componentName);
+
+        cur.dragComponent = true;
+      },
+      allowDrop: function(ev) {
+        if(cur.dragComponent){
+          ev.preventDefault();
+        }
+      },
+      drop: function(ev) {
+        ev.preventDefault();
+        var componentName = ev.dataTransfer.getData("Text"); // 组件名称
+        cur.dragComponent = false;
+
+        console.log(componentName);
+      },
+
+      // 连线
+      mouseDown: function(ev) {
+      },
+      mouseMove: function(ev) {
+        if(this.drawLineMode && cur.line){
+            // cur.line.lineTo(container.getPos(ev));
+        }
+      },
+      mouseUp: function(ev) {
+        if(this.drawLineMode && ev.button == 2){
+          // 取消画线
           cur.line = null;
         }
-      }
-    },
-
-    // 连线
-    mouseDown: function(ev) {
-    },
-    mouseMove: function(ev) {
-      if(this.drawLineMode && cur.line){
-          cur.line.lineTo(GetPos(ev));
-      }
-    },
-    mouseUp: function(ev) {
-      if(this.drawLineMode && ev.button == 2){
-        // 取消画线
-        this.shapeDelLast();
-        cur.line = null;
-      }
-    },
+      },
   },
   mounted: function(params) {
-    containerOffset = {
-      left: this.$refs.mainContainer.$el.offsetLeft,
-      top: this.$refs.mainContainer.$el.offsetTop
-    };
-
     // 禁止右键菜单
     document.addEventListener('contextmenu', event => event.preventDefault());
   },
   components: {
+    VRuntimeTemplate,
     VResizable,
     VLine
   }
@@ -194,10 +183,6 @@ export default {
 <style lang="less" scoped>
   .el-menu-item {
     cursor: move;
-  }
-
-  .el-main {
-    position: relative;
   }
 
   .el-header {

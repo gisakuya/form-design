@@ -310,7 +310,7 @@ function GetPointFromPoints(points, target){
     return null;
 }
 
-// 将点和点集合合并
+// 将点和点集合合并(坐标相同的不会合并)
 function MergePointAndPoints(point, points){
     let arr = [ point ];
     for (let i = 0; i < points.length; i++) {
@@ -319,6 +319,43 @@ function MergePointAndPoints(point, points){
         arr.push(pt);
     }
     return arr;
+}
+
+// 将路径里多段直线合并
+function MergePath(path){
+    if(path.length < 3) return path;
+
+    let mpath = [];
+    let pt = null, npt = null, preLineType = null;
+    for (let i = 0; i < path.length - 1; i++) {
+        pt = path[i];
+        npt = path[i+1];
+        let curLineType = null;
+        if(pt.x == npt.x){
+            // 垂线
+            curLineType = "VL";
+        }
+        else if(pt.y == npt.y){
+            // 直线
+            curLineType = "HL";
+        }
+        else{
+            throw "无法识别线条类型";
+        }
+
+        if(i == 0){
+            mpath.push(pt);
+            preLineType = curLineType;
+            continue;
+        }
+
+        if(curLineType != preLineType){
+            mpath.push(pt);
+            preLineType = curLineType;
+        }
+    }
+    mpath.push(npt);
+    return mpath;
 }
 
 // 查找点pt1到点pt2的“最优”路径
@@ -374,7 +411,7 @@ export function GetPath(rect1, pt1, rect2, pt2)
     allPaths.forEach(path=>{
         path.pxLen = CalcPathPXLen(path); // 计算路径长度
         path.edgeCount = CalcPathEdgeCount(path, rect1) + CalcPathEdgeCount(path, rect2); // 计算路径与矩形边缘的重叠数
-        path.lineCount = CalcLineCount(path);
+        path.lineCount = CalcLineCount(path); //计算直线数量
         // path.printPath = PrintPath(path); // For Debug
     });
 
@@ -399,7 +436,7 @@ export function GetPath(rect1, pt1, rect2, pt2)
     //     console.log('------');
     // }
     // --- For Debug ---
-    return firstSortedPath;
+    return MergePath(firstSortedPath);
 }
 
 // 根据路径生成矩形(供外部VLine使用，用于生成画图的大小)
@@ -423,6 +460,33 @@ export function GetPathRect(path){
         }
     });
     return { l: minl, t: mint, w: maxr - minl, h: maxb - mint };
+}
+
+// 点是否在路径内(供外部VLine使用)
+export function IsPointInPath(point, path, offset){
+    // 根据点生成矩形
+    const { x, y } = point;
+
+    for (let i = 0; i < path.length-1; i++) {
+        const pt = path[i];
+        const npt = path[i+1];
+        if(pt.x == npt.x){
+            // 垂线
+            let {min, max} = FindMinMax(pt.y, npt.y);
+
+            if(pt.x - offset <= x && x <= pt.x + offset &&
+               min + offset <= y && y <= max - offset) return { type: 'VL', path: [ pt, npt ] };
+        }
+        else if(pt.y == npt.y){
+            // 水平线
+            let {min, max} = FindMinMax(pt.x, npt.x);
+
+            if(pt.y - offset <= y && y <= pt.y + offset &&
+               min + offset <= x && x <= max - offset) return { type: 'HL', path: [ pt, npt ] };
+        }
+        
+    }
+    return false;
 }
 
 // 打印路径(调试用)

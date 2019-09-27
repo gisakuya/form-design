@@ -1,43 +1,51 @@
 <template>
   <div class="warpper" :style="selfStyle"
-    @mousedown.left.stop="mouseDown($event, moveSelf);dragBegin()"
+    @mousedown.left.stop="mouseDown($event, moveSelf)"
     @mouseenter="mouseEnter"
     @mouseleave="mouseLeave"
+    @keyup.delete="delSelf"
+    tabindex="1"
   >
       <slot></slot>
+      {{ test }} {{ test2 }}
       <div v-show="isShowBorder" class="layer"></div>
       <!-- 左上角 -->
       <div class="ctl-dot tl" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftUp);dragBegin()" @click.left.stop="dotClick($event, 'tl')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftUp)"
+            @click.left.stop="dotClick($event, 'tl')"></div>
       <!-- 右上角 -->
       <div class="ctl-dot tr" :class="dotCls" v-show="isShowBorder" 
-            @mousedown.left.stop="dotMouseDown($event, dotMoveRightUp);dragBegin()" @click.left.stop="dotClick($event, 'tr')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveRightUp)"
+            @click.left.stop="dotClick($event, 'tr')"></div>
       <!-- 左下角 -->
       <div class="ctl-dot lb" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftDown);dragBegin()" @click.left.stop="dotClick($event, 'lb')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftDown)"
+            @click.left.stop="dotClick($event, 'lb')"></div>
       <!-- 右下角 -->
       <div class="ctl-dot rb" :class="dotCls" v-show="isShowBorder" 
-            @mousedown.left.stop="dotMouseDown($event, dotMoveRightDown);dragBegin()" @click.left.stop="dotClick($event, 'rb')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveRightDown)"
+            @click.left.stop="dotClick($event, 'rb')"></div>
       <!-- 上中 -->
       <div class="ctl-dot tc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveUp);dragBegin()" @click.left.stop="dotClick($event, 'tc')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveUp)"
+            @click.left.stop="dotClick($event, 'tc')"></div>
       <!-- 下中 -->
       <div class="ctl-dot bc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveDown);dragBegin()" @click.left.stop="dotClick($event, 'bc')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveDown)"
+            @click.left.stop="dotClick($event, 'bc')"></div>
       <!-- 左中 -->
       <div class="ctl-dot lc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveLeft);dragBegin()" @click.left.stop="dotClick($event, 'lc')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveLeft)"
+            @click.left.stop="dotClick($event, 'lc')"></div>
       <!-- 右中 -->
       <div class="ctl-dot rc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveRight);dragBegin()" @click.left.stop="dotClick($event, 'rc')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveRight)"
+            @click.left.stop="dotClick($event, 'rc')"></div>
   </div>
 </template>
 
 <script>
-// 对数进行取整
-function QuZheng(val){
-    return Math.round(val/10)*10;
-}
+import { QuZheng } from "./utility";
 
 var mouse = {
     x: 0,
@@ -60,6 +68,7 @@ var mouse = {
 
 export default {
     name: 'VResizable',
+    inject: ['onComponentCreated', 'onComponentActived'],
     data: function() {
         return {
             x: 0,
@@ -68,12 +77,39 @@ export default {
             h: 0,
             dragging: false,
             showBorderInner: false,
-            isActive: false
+            isActive: false,
+            test: 'hello',
+            test2: 'world'
         };
     },
     props: {
         connectMode: Boolean
     },
+    designProps: [
+        {
+            title: '一般属性',
+            props: [
+                {
+                    title: '属性1',
+                    getVal: function() {
+                        return this.test;
+                    },
+                    setVal: function(val){
+                        this.test = val;
+                    }
+                }
+            ]
+        },
+        {
+            title: '特殊属性',
+            props: [
+                {
+                    title: '属性2',
+                    name: 'test2'
+                }
+            ]
+        }
+    ],
     methods: {
         // 供外部使用
         setPos: function(pos){
@@ -81,21 +117,23 @@ export default {
             this.y = QuZheng(pos.y);
         },
         getDotPos: function(dot){
+            const w = this.$el.offsetWidth;
+            const h = this.$el.offsetHeight;
             if(dot == "tc"){
                 // 上中
-                return { x: this.x + this.realW()/2, y: this. y };
+                return { x: this.x + w/2, y: this.y };
             }
             else if(dot == "bc"){
                 // 下中
-                return { x: this.x + this.realW()/2, y: this.y + this.realH() };
+                return { x: this.x + w/2, y: this.y + h };
             }
             else if(dot == "lc"){
                 // 左中
-                return { x: this.x, y: this.y + this.realH()/2 };
+                return { x: this.x, y: this.y + h/2 };
             }
             else if(dot == "rc"){
                 // 右中
-                return { x: this.x + this.realW(), y: this.y + this.realH()/2 };
+                return { x: this.x + w, y: this.y + h/2 };
             }
             else if(dot == "tl"){
                 // 左上角（左中+上中）
@@ -103,41 +141,21 @@ export default {
             }
             else if(dot == "tr"){
                 // 右上角(右中+上中)
-                return { x: this.x + this.realW(), y: this.y };
+                return { x: this.x + w, y: this.y };
             }
             else if(dot == "lb"){
                 // 左下角(左中+下中)
-                return { x: this.x, y: this.y + this.realH() };
+                return { x: this.x, y: this.y + h };
             }
             else if(dot == "rb"){
                 // 右下角(右中+下中)
-                return { x: this.x + this.realW(), y: this.y + this.realH() };
+                return { x: this.x + w, y: this.y + h };
             }
         },
         getRect: function(){
-            return { l: this.x, t: this.y, w: this.realW(), h: this.realH() };
-        },
-        exportConfig: function(){
-            return { class: "VResizeable", left: this.x, top: this.y, width: this.w, height: this.h };
-        },
-        loadConfig: function(cfg){
-            this.x = cfg.left;
-            this.y = cfg.top;
-            this.w = cfg.width;
-            this.h = cfg.height;
-        },
-
-        // 供内部使用
-        realW: function(){
-            return this.$el.offsetWidth;
-        },
-        realH: function(){
-            return this.$el.offsetHeight;
-        },
-        dragBegin: function(){
-            this.dragging = true;       // 拖曳生效
-            this.isActive = true;       // 激活
-            this.showBorderInner = true;// 显示边框
+            const w = this.$el.offsetWidth;
+            const h = this.$el.offsetHeight;
+            return { l: this.x, t: this.y, w: w, h: h };
         },
 
         // Dot
@@ -151,7 +169,8 @@ export default {
             mouse.setData({ orgW: this.w, orgH: this.h, orgX: this.x, orgY: this.y, x: ev.x, y: ev.y });
             mouse.handler = handler;
 
-            // 设置鼠标样式
+            this.dragging = true;
+            this.isActive = true;
             document.body.style.cursor = getComputedStyle(ev.currentTarget).cursor;
         },
 
@@ -160,12 +179,15 @@ export default {
             this.showBorderInner = true;
         },
         mouseLeave: function(){
-            if(!this.isActive)  this.showBorderInner = false 
+            this.showBorderInner = false 
         },
         mouseDown: function(ev, handler){
             // 记录鼠标初始值
             mouse.setData({ offsetX: ev.x - this.x, offsetY: ev.y - this.y });
             mouse.handler = handler;
+
+            this.dragging = true;
+            this.isActive = true;
         },
 
         // Document
@@ -181,11 +203,9 @@ export default {
         docMouseUp: function(){
             if(!this.dragging){
                 this.isActive = false;
-                this.showBorderInner = false;
             }
-            this.dragging = false;
 
-            // 还原鼠标样式
+            this.dragging = false;
             document.body.style.cursor = "";
         },
 
@@ -223,12 +243,19 @@ export default {
         moveSelf: function(x, y){
             this.x = QuZheng(x - mouse.data.offsetX);
             this.y = QuZheng(y - mouse.data.offsetY);
+        },
+
+        // 删除自己
+        delSelf: function(){
+            this.$emit("Destory");
+            this.$el.parentNode.removeChild(this.$el);
+            this.$destroy();
         }
     },
     computed: {
         // 是否显示border
         isShowBorder: function(){
-            return this.connectMode || this.showBorderInner;
+            return this.connectMode || this.showBorderInner || this.isActive;
         },
         // dot样式
         dotCls: function(){
@@ -247,17 +274,31 @@ export default {
             };
         }
     },
+    watch: {
+        isActive: function(val){
+            this.onComponentActived(this, val);
+        }
+    },
     mounted: function() {
-        // 初始化本身
-        this.w = QuZheng(this.$el.offsetWidth);
-        this.h = QuZheng(this.$el.offsetHeight);
+        // 字符串分割
+        const strSplit = str => str ? str.split(',') : [];
+
+        // 初始化位置
+        const [x, y]= strSplit(this.$attrs.pos);
+        this.x = +x || 0;
+        this.y = +y || 0;
+
+        // 初始化大小
+        const [w, h] = strSplit(this.$attrs.size);
+        this.w = +w || QuZheng(this.$el.offsetWidth);
+        this.h = +h || QuZheng(this.$el.offsetHeight);
 
         // document
-        document.addEventListener("mousemove", this.docMouseMove);
-        document.addEventListener("mouseup", this.docMouseUp)
+        this.$el.parentNode.addEventListener("mousemove", this.docMouseMove);
+        this.$el.parentNode.addEventListener("mouseup", this.docMouseUp);
 
-        // 发送初始化完成事件
-        this.$emit('init', this);
+        // 发送事件给父
+        this.onComponentCreated(this);
     }
 }
 </script>

@@ -1,82 +1,94 @@
 <template>
-  <canvas :style="{ 
-      left: x+'px',
-      top: y+'px',
-    }" :width="w" :height="h"></canvas>
+  <canvas 
+    :style="selfStyle" :width="w" :height="h" 
+    @mousemove="mouseMove($event)"
+    @mousedown.left.stop="mouseDown($event);"
+    @keyup.delete="delSelf"
+    tabindex="1"
+    ></canvas>
 </template>
 
 <script>
-import { GetPath, GetPathRect } from "./VLineUtility";
+import { GetPath, GetPathRect, IsPointInPath } from "./VLineUtility";
+import { QuZheng } from "./utility";
 
 export default {
     name: 'VLine',
+    inject: ['onComponentCreated', 'onComponentActived'],
     data: function(){
         return {
+            // 画布的坐标和长宽
             x: 0,
             y: 0,
             w: 0,
             h: 0,
-            mouse: {},
-            isActive: false,
-            context: null,
-            source: null,
+
+            // 画布的上下文和路线
+            drawContext: null,
+            // 路径的所有点组成
+            drawPath: null,
+
+            // 连接的源和目标
+            source:  null,
             dest: null,
+
+            // 线条是否处于拖曳状态
+            dragging: false,
+            // 被拖曳的线条的处理器
+            draggingHandler: null,
+
+            // 线条是否激活
+            isActive: false,
+            // 是否显示边框
+            showBorderInner: false,
+
+            // 宽度
+            width: 1,
+            // 颜色
+            color: 'black',
         };
     },
-    props: {
-        width: {
-            type: Number,
-            default: 1
-        },
-        color: {
-            type: String,
-            default: 'black'
-        }
-    },
+    props: { },
+    designProps: [{
+        title: '一般属性',
+        props: [
+            { title: '宽度', name: 'width' },
+            { title: '颜色', name: 'color' },
+        ]
+    }],
     methods: {
+        // 外部使用
         moveTo: function(pos){
-            this.mouse.x0 = pos.x;
-            this.mouse.y0 = pos.y;
-            this.paint();
+            this.drawPath = [ pos ];
         },
+        // 外部使用
         lineTo: function(pos) {
-            this.mouse.x1 = pos.x;
-            this.mouse.y1 = pos.y; 
+            this.drawPath.push(pos);
             this.paint();
         },
+
+        // 内部使用
         paint: function(){
-            const mouse = this.mouse;
+            let paths = this.drawPath;
 
-            // 计算路径
-            const from = { x: mouse.x0 , y: mouse.y0  }; // 起点
-            const to = { x: mouse.x1,  y: mouse.y1  };  // 终点
-            let paths = null;
-            if(this.dest){
-                const rectFrom = this.source.el.getRect();
-                const rectTo = this.dest.el.getRect();
-                paths = GetPath(rectFrom, from, rectTo, to);
-            }
-            else{
-                paths = [ from, to ];
-            }
-
-            const pathRect = GetPathRect(paths);
+            const pathRect = GetPathRect(this.drawPath);
             this.x = pathRect.l - 10;
             this.y = pathRect.t - 10;
             this.w = pathRect.w + 20;
             this.h = pathRect.h + 20;
 
             this.$nextTick(()=>{
-                let ctx = this.context;
+                // 画布准备好
+                let ctx = this.drawContext;
                 ctx.clearRect(0, 0, this.$el.width, this.$el.height);
                 ctx.beginPath();
                 ctx.lineWidth = this.width;     // 线条粗细
-                ctx.strokeStyle= this.isActive ? "red" : this.color;    // 线条颜色
+                ctx.strokeStyle = this.isShowBorder ? "red" : this.color;    // 线条颜色
 
                 for (let i = 0; i < paths.length; i++) {
                     const path = paths[i];
-                    let x = path.x - this.x;
-                    let y = path.y - this.y;
+                    let x = path.x - this.x;    // 坐标原点转换
+                    let y = path.y - this.y;    // 坐标原点转换
                     if(i == 0){
                         ctx.moveTo(x, y);
                     }
@@ -88,61 +100,179 @@ export default {
             });
         },
 
-        moveToSource: function(){
-            const { el, dot } = this.source;
-            const pos = el.getDotPos(dot);
-            this.moveTo(pos);
+        //内部使用
+        refreshPath: function(){
+            if(!this.source || !this.dest) return;
+
+            const pos1 = this.source.el.getDotPos(this.source.dot);
+            const rect1 = this.source.el.getRect();
+            const pos2 = this.dest.el.getDotPos(this.dest.dot);
+            const rect2 = this.dest.el.getRect();
+
+            this.drawPath = GetPath(rect1, pos1, rect2, pos2);
+
+            this.paint();
         },
-        lineToDest: function(){
-            const { el, dot } = this.dest;
-            const pos = el.getDotPos(dot);
-            this.lineTo(pos);
+
+        // 内部使用
+        setSource: function(str){
+            if(!str) return false;
+            let [comName, dotName] = str.split('.');
+            if(!comName || !dotName) return false;
+            let com = this.$parent.$refs[comName];
+            if(!com) return false;
+            this.source = { el: com, dot: dotName };
+            return true;
+        },
+        setDest: function(str){
+            if(!str) return false;
+            let [comName, dotName] = str.split('.');
+            if(!comName || !dotName) return false;
+            let com = this.$parent.$refs[comName];
+            if(!com) return false;
+            this.dest = { el: com, dot: dotName };
+            return true;
         },
 
-        bindSource(el, dot){
-            if(this.source) el.$off("DotPosChanged", this.moveToSource);
-            el.$on("DotPosChanged", this.moveToSource);
-
-            this.source = { el: el, dot: dot }; 
-
-            this.moveToSource();
+        // 内部使用
+        mouseMove: function(ev){
+            if(this.dragging)
+            {
+                this.draggingHandler(ev);
+            }
+            else if(this.dest)
+            {
+                const el = this.$el;
+                let pointInPath = IsPointInPath({ x: el.offsetLeft + ev.offsetX, y: el.offsetTop + ev.offsetY }, this.drawPath, 5);
+                if(pointInPath){
+                    // 相当于mouse-enter
+                    el.style.cursor = pointInPath.type == "VL" ? "e-resize" : pointInPath.type == "HL" ? "n-resize" : "";
+                    this.showBorderInner = true;
+                }
+                else{
+                    // 相当于mouse-leave
+                    el.style.cursor = "";
+                    this.showBorderInner = false;
+                }
+            }
+            this.paint();
         },
-        bindDest(el, dot){
-            if(this.dest) el.$off("DotPosChanged", this.lineToDest);
-            el.$on("DotPosChanged", this.lineToDest);
 
-            this.dest = { el: el, dot: dot }; 
-
-            this.lineToDest();
+        mouseDown: function(ev){
+            const el = this.$el;
+            let pointInPath = IsPointInPath({ x: el.offsetLeft + ev.offsetX, y: el.offsetTop + ev.offsetY }, this.drawPath, 5);
+            if(pointInPath){
+                let [pt, npt] = pointInPath.path;
+                let lineType = pointInPath.type;
+                let { x: x0, y: y0 } = ev;
+                this.draggingHandler = nev => {
+                    let { x: x1, y: y1 } = nev;
+                    let ox = x1 - x0;
+                    let oy = y1 - y0;
+                    if(lineType == "VL"){
+                        pt.x += ox;
+                        npt.x += ox;
+                    }
+                    else if(lineType == "HL"){
+                        pt.y += oy;
+                        npt.y += oy;
+                    }
+                    x0 = x1;
+                    y0 = y1;
+                };
+                
+                this.dragging = true;
+                this.isActive = true;
+            }
         },
+
+        docMouseUp: function(ev){
+            if(!this.dragging){
+                this.isActive = false;
+                this.paint();
+            }
+
+            this.draggingHandler = null;
+            this.dragging = false;
+        },
+
+        // 删除自己
+        delSelf: function(){
+            this.$emit("Destory");
+            this.$el.parentNode.removeChild(this.$el);
+            this.$destroy();
+        },
+
+        // 删除事件
+        unSubscribeEvent: function(com){
+            com.$off("DotPosChanged", this.refreshPath);
+            com.$off("Destory", this.delSelf);
+        },
+        // 订阅事件
+        subscribeEvent: function(com){
+            com.$on("DotPosChanged", this.refreshPath);
+            com.$on("Destory", this.delSelf);
+        }
+    },
+    computed: {
+        // 是否显示border
+        isShowBorder: function(){
+            return this.showBorderInner || this.isActive;
+        },
+        // 本身样式
+        selfStyle: function(){
+            return { 
+                left: this.x + 'px', 
+                top: this.y + 'px',
+            };
+        }
     },
     mounted: function() {
-        this.context = this.$el.getContext('2d');
+        // 初始化
+        let {source, dest} = this.$attrs;
+        if(this.setSource(source) && this.setDest(dest)){
+            let { path } = this.$attrs
+            if(path){
+                this.drawPath = [];
+                let points = path.split('|');
+                points.forEach(pt => {
+                    const [ x, y ] = pt.split(',');
+                    this.drawPath.push({ x, y });
+                })
+                this.paint();
+            }
+            else{
+                this.$nextTick(() => {
+                    this.refreshPath();
+                });
+            }
+        }
 
-        // this.$el.addEventListener("click", ev=>{
-        //     if(ev.button == 0){
-        //         this.isActive = true;
-        //         this.paint();
-        //         ev.stopPropagation();
-        //     }
-        // });
+        // 获取画图上下文
+        this.drawContext = this.$el.getContext('2d');
 
-        // document.addEventListener("click", ev=>{
-        //     if(ev.button == 0){
-        //         this.isActive = false
-        //         this.paint();
-        //     }
-        // });
+        // document
+        this.$el.parentNode.addEventListener("mouseup", this.docMouseUp);
 
-        this.$emit('init', this);
+        // 发送事件给父
+        this.onComponentCreated(this);
+    },
+    watch: {
+        source: function(val, oldVal){
+            if(oldVal) this.unSubscribeEvent(oldVal.el);
+            if(val) this.subscribeEvent(val.el);
+        },
+        dest: function(val, oldVal){
+            if(oldVal) this.unSubscribeEvent(oldVal.el);
+            if(val) this.subscribeEvent(val.el);
+        },
+        isActive: function(val){
+            this.onComponentActived(this, val);
+        }
     },
     destroyed: function(){
-        if(this.source){
-            this.source.el.$off("DotPosChanged", this.moveToSource);
-        }
-        if(this.dest){
-            this.dest.el.$off("DotPosChanged", this.lineToDest);
-        }
+        if(this.source) this.unSubscribeEvent(this.source.el);
+        if(this.dest) this.unSubscribeEvent(this.dest.el);
     }
 }
 </script>
@@ -151,9 +281,8 @@ export default {
     canvas {
         display: inline-block;
         position: absolute;
-        /* background: yellow; */
+        // background: yellow;
         background: transparent;
-        cursor: pointer;
 
         &:focus{
             outline: none;
