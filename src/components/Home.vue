@@ -44,10 +44,13 @@
               <tr v-for="prop in group.props" :key="prop.title">
                 <td style="width:60px;"><span style="margin-left:5px;font-size:14px">{{ prop.title }}</span></td>
                 <td>
-                    <input v-if="prop.name" class="el-input__inner" v-model="cur.activeCom[prop.name]"/>
+                    <input v-if="prop.get" class="el-input__inner"
+                      :title="prop.tooltip"
+                      :value="prop.get.call(cur.activeCom)" 
+                      @change="prop.set.call(cur.activeCom, $event.target.value)"/>
                     <input v-else class="el-input__inner"
-                      :value="prop.getVal.call(cur.activeCom)" 
-                      @change="prop.setVal.call(cur.activeCom, $event.target.value)"/>
+                      :title="prop.tooltip"
+                      v-model="cur.activeCom[prop.name]"/>
                   </td>
               </tr>
             </table>
@@ -70,7 +73,11 @@ export default {
   provide: function(){
     return {
         onComponentCreated: this.onComponentCreated,
-        onComponentActived: this.onComponentActived
+        onComponentActived: this.onComponentActived,
+        getComponentByName: this.getComponentByName,
+        createNewComponentName: this.createNewComponentName,
+        isComponentNameVaild: this.isComponentNameVaild,
+        onComponentTplChanged: this.onComponentTplChanged
     }
   },
   data() {
@@ -86,30 +93,26 @@ export default {
       drawLineMode: false,
       tpl: `
         <div>
-          <v-resizable ref="cmp1">
+          <v-resizable name="cmp1">
             <nb-sun2000-36k></nb-sun2000-36k>
           </v-resizable>
 
-          <v-resizable ref="cmp2" pos="500,150" size="200,100">
+          <v-resizable name="cmp2" pos="500,150" size="200,100">
             <nb-sun2000-36k></nb-sun2000-36k>
           </v-resizable>
 
-          <v-line source="cmp1.rc" dest="cmp2.lc" path="0,0|100,100"></v-line>
+          <v-line source="cmp1.rc" dest="cmp2.lc"></v-line>
         </div>
       `,
-      cur: {}
+      cur: {},
+      components: []
     }
   },
   methods: {
-      // 人为改变模板
-      tplChange: function(val){
-        this.tpl = val;
-        this.$refs.vrt.refresh();
-      },
- 
       // 组件创建时
       onComponentCreated: function(com){
         console.log("onComponentCreated", com);
+        this.components.push(com);
       },
 
       // 组件激活时
@@ -129,6 +132,83 @@ export default {
             }
           }
         }
+      },
+
+      // 组件模板发生变化时
+      onComponentTplChanged: function(com, tpl){
+
+      },
+
+      // 通过名称获取组件
+      getComponentByName: function(comId){
+        for (let i = 0; i < this.components.length; i++) {
+          const com = this.components[i];
+          if(com.name == comId) return com;
+        }
+        return null;
+      },
+
+      // 创建组件名称
+      createNewComponentName: function(com){
+        let comType = com.$options._componentTag;
+        comType = comType.toLowerCase().replace("-", "");
+        let index = 1;
+        let comName = null;
+        do{
+          comName = `${comType}${index++}`
+        }
+        while(!this.isComponentNameVaild(comName))
+        return comName;
+      },
+
+      // 组件名是否有效
+      isComponentNameVaild:function(comName){
+        for (let i = 0; i < this.components.length; i++) {
+          const com = this.components[i];
+          if(com.name == comName) return false;
+        }
+        return true;
+      },
+
+      // 初始化所有组件的设计属性
+      initComponentsDesignProps: function(){
+          this.$nextTick(()=>{
+            for (let i = 0; i < this.components.length; i++) {
+              const com = this.components[i];
+              const designPropGroups = com.$options.designProps;
+              if(!designPropGroups || designPropGroups.length == 0) continue;
+              let designProps = [];
+              for (let i = 0; i < designPropGroups.length; i++) {
+                const group = designPropGroups[i];
+                if(group.props){
+                  designProps.push(...group.props);
+                }
+              }
+              for (let j = 0; j < designProps.length; j++) {
+                const designProp = designProps[j];
+                if(!designProp.name) continue;
+                const designPropVal = com.$attrs[designProp.name] || designProp.default;
+                if(designProp.init){
+                  designProp.init.call(com, designPropVal);
+                }
+                else if(designProp.set){
+                  designProp.set.call(com, designPropVal, true);
+                }
+                else{
+                  com.$data[designProp.name] = designPropVal;
+                }
+              }
+            }
+
+            this.$nextTick(()=>{
+              for (let i = 0; i < this.components.length; i++) {
+                const com = this.components[i];
+                if(com.$options.designPropsInitFinish){
+                  com.$options.designPropsInitFinish.call(com);
+                }
+              } 
+            });
+          });
       },
 
       // 拖拉组件
@@ -166,10 +246,21 @@ export default {
           cur.line = null;
         }
       },
+
+        // 人为改变模板
+      tplChange: function(val){
+        this.components = [];
+        this.tpl = val;
+        this.$refs.vrt.refresh();
+        this.initComponentsDesignProps();
+      },
   },
   mounted: function(params) {
     // 禁止右键菜单
     document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // 初始化所有组件的设计属性
+    this.initComponentsDesignProps();
   },
   components: {
     VRuntimeTemplate,

@@ -14,7 +14,11 @@ import { QuZheng } from "./utility";
 
 export default {
     name: 'VLine',
-    inject: ['onComponentCreated', 'onComponentActived'],
+    inject: [
+        'onComponentCreated', 
+        'onComponentActived', 
+        'getComponentByName',
+    ],
     data: function(){
         return {
             // 画布的坐标和长宽
@@ -43,17 +47,65 @@ export default {
             showBorderInner: false,
 
             // 宽度
-            width: 1,
+            width: null,
             // 颜色
-            color: 'black',
+            color: null,
         };
     },
     props: { },
     designProps: [{
         title: '一般属性',
         props: [
-            { title: '宽度', name: 'width' },
-            { title: '颜色', name: 'color' },
+            { title: '宽度', name: 'width', default: 1 },
+            { title: '颜色', name: 'color', default: 'black' },
+            {
+                title: '连接起点',
+                name: 'source',
+                get: function(){
+                    return this.source ?  `${this.source.el.name}.${this.source.dot}` : '';
+                },
+                set: function(val){
+                    if(!val) return;
+                    let [comName, dotName] = val.split('.');
+                    if(!comName || !dotName) return;
+                    let com = this.getComponentByName(comName);
+                    if(!com) return;
+                    this.source = { el: com, dot: dotName };
+                }
+            },
+            {
+                title: '连接终点',
+                name: 'dest',
+                get: function(){
+                    return this.dest ?  `${this.dest.el.name}.${this.dest.dot}` : '';
+                },
+                set: function(val){
+                    if(!val) return;
+                    let [comName, dotName] = val.split('.');
+                    if(!comName || !dotName) return;
+                    let com = this.getComponentByName(comName);
+                    if(!com) return;
+                    this.dest = { el: com, dot: dotName };
+                }
+            },
+            {
+                title: '路径',
+                name: 'path',
+                get: function(){
+                    return this.drawPath ?
+                            this.drawPath.map(pt=>`${pt.x},${pt.y}`).join('|') :
+                            '';
+                },
+                set: function(val){
+                    if(!val) return;
+                    let points = val.split('|');
+                    points.forEach(pt => {
+                        const [ x, y ] = pt.split(',');
+                        this.drawPath.push({ x, y });
+                    });
+                    this.paint();
+                }
+            }
         ]
     }],
     methods: {
@@ -69,6 +121,8 @@ export default {
 
         // 内部使用
         paint: function(){
+            if(!this.drawPath || this.drawPath.length == 1) return;
+
             let paths = this.drawPath;
 
             const pathRect = GetPathRect(this.drawPath);
@@ -112,26 +166,6 @@ export default {
             this.drawPath = GetPath(rect1, pos1, rect2, pos2);
 
             this.paint();
-        },
-
-        // 内部使用
-        setSource: function(str){
-            if(!str) return false;
-            let [comName, dotName] = str.split('.');
-            if(!comName || !dotName) return false;
-            let com = this.$parent.$refs[comName];
-            if(!com) return false;
-            this.source = { el: com, dot: dotName };
-            return true;
-        },
-        setDest: function(str){
-            if(!str) return false;
-            let [comName, dotName] = str.split('.');
-            if(!comName || !dotName) return false;
-            let com = this.$parent.$refs[comName];
-            if(!com) return false;
-            this.dest = { el: com, dot: dotName };
-            return true;
         },
 
         // 内部使用
@@ -228,26 +262,6 @@ export default {
         }
     },
     mounted: function() {
-        // 初始化
-        let {source, dest} = this.$attrs;
-        if(this.setSource(source) && this.setDest(dest)){
-            let { path } = this.$attrs
-            if(path){
-                this.drawPath = [];
-                let points = path.split('|');
-                points.forEach(pt => {
-                    const [ x, y ] = pt.split(',');
-                    this.drawPath.push({ x, y });
-                })
-                this.paint();
-            }
-            else{
-                this.$nextTick(() => {
-                    this.refreshPath();
-                });
-            }
-        }
-
         // 获取画图上下文
         this.drawContext = this.$el.getContext('2d');
 

@@ -7,7 +7,6 @@
     tabindex="1"
   >
       <slot></slot>
-      {{ test }} {{ test2 }}
       <div v-show="isShowBorder" class="layer"></div>
       <!-- 左上角 -->
       <div class="ctl-dot tl" :class="dotCls" v-show="isShowBorder"
@@ -68,18 +67,22 @@ var mouse = {
 
 export default {
     name: 'VResizable',
-    inject: ['onComponentCreated', 'onComponentActived'],
+    inject: [
+        'onComponentCreated', 
+        'onComponentActived',
+        'createNewComponentName',
+        'isComponentNameVaild'
+    ],
     data: function() {
         return {
             x: 0,
             y: 0,
             w: 0,
             h: 0,
+            name: null,
             dragging: false,
             showBorderInner: false,
-            isActive: false,
-            test: 'hello',
-            test2: 'world'
+            isActive: false
         };
     },
     props: {
@@ -90,26 +93,60 @@ export default {
             title: '一般属性',
             props: [
                 {
-                    title: '属性1',
-                    getVal: function() {
-                        return this.test;
+                    title: '名称',
+                    name: 'name',
+                    get: function(){
+                        return this.name;
                     },
-                    setVal: function(val){
-                        this.test = val;
+                    set: function(val){
+                        if(!val) return;
+                        if(!this.isComponentNameVaild(val)){
+                            alert("该名字已被占用!");
+                        }
+                        else{
+                            this.name = val;
+                        }
+                    },
+                    init: function(val){
+                        this.name = val || this.createNewComponentName(this);
                     }
-                }
-            ]
-        },
-        {
-            title: '特殊属性',
-            props: [
+                },
                 {
-                    title: '属性2',
-                    name: 'test2'
-                }
+                    title: '位置',
+                    name: 'pos',
+                    tooltip: '格式：x,y',
+                    get: function() {
+                        return `${this.x},${this.y}`;
+                    },
+                    set: function(val, i){
+                        if(!val) return;
+                        let tmp = val.split(',');
+                        this.x = +tmp[0];
+                        this.y = +tmp[1];
+                        if(!i) this.emitDotPosChange();
+                    }
+                },
+                {
+                    title: '大小',
+                    name: 'size',
+                    tooltip: '格式：w,h',
+                    get: function() {
+                        return `${this.w},${this.h}`;
+                    },
+                    set: function(val, i){
+                        if(!val) return;
+                        let tmp = val.split(',');
+                        this.w = +tmp[0];
+                        this.h = +tmp[1];
+                        if(!i) this.emitDotPosChange();
+                    },
+                },
             ]
         }
     ],
+    designPropsInitFinish: function(){
+        this.emitDotPosChange();
+    },
     methods: {
         // 供外部使用
         setPos: function(pos){
@@ -198,7 +235,7 @@ export default {
             mouse.handler(ev.x, ev.y);
             mouse.setPos(ev);
 
-            this.$nextTick(() => this.$emit("DotPosChanged"));
+            this.emitDotPosChange();
         },
         docMouseUp: function(){
             if(!this.dragging){
@@ -250,6 +287,13 @@ export default {
             this.$emit("Destory");
             this.$el.parentNode.removeChild(this.$el);
             this.$destroy();
+        },
+
+        // 发送事件
+        emitDotPosChange: function(){
+            this.$nextTick(()=>{
+                this.$emit("DotPosChanged");
+            })
         }
     },
     computed: {
@@ -272,6 +316,20 @@ export default {
                 height: this.h ? this.h + 'px' : null,
                 borderColor: this.isShowBorder ? '#9ed0fa' : 'transparent',
             };
+        },
+        // 模板
+        tpl: function(){
+            const designProps = this.$options.designProps;
+            if(!designProps || designProps.length == 0) return null;
+            for (let i = 0; i < designProps.length; i++) {
+                const g = designProps[i];
+                if(!g.props) continue;
+                for (let j = 0; j < g.props.length; j++) {
+                    const prop = g.props[j];
+                    if(!prop.name) continue;
+                    console.log(prop.name);
+                }
+            }
         }
     },
     watch: {
@@ -280,19 +338,6 @@ export default {
         }
     },
     mounted: function() {
-        // 字符串分割
-        const strSplit = str => str ? str.split(',') : [];
-
-        // 初始化位置
-        const [x, y]= strSplit(this.$attrs.pos);
-        this.x = +x || 0;
-        this.y = +y || 0;
-
-        // 初始化大小
-        const [w, h] = strSplit(this.$attrs.size);
-        this.w = +w || QuZheng(this.$el.offsetWidth);
-        this.h = +h || QuZheng(this.$el.offsetHeight);
-
         // document
         this.$el.parentNode.addEventListener("mousemove", this.docMouseMove);
         this.$el.parentNode.addEventListener("mouseup", this.docMouseUp);
