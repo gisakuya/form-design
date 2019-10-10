@@ -1,3 +1,4 @@
+<script>
 const defineDescriptor = (src, dest, name) => {
   if (!dest.hasOwnProperty(name)) {
     const descriptor = Object.getOwnPropertyDescriptor(src, name);
@@ -111,16 +112,17 @@ export default {
       const provide = this.$parent._provided;
 
       const dynamic = {
-        template: this.template || "<div></div>",
+        template: `<div>${this.template}</div>`,
         props: allKeys,
         computed: passthrough.computed,
         components: passthrough.components,
         provide: provide
       };
-
+    
       this.templateVNode = h(dynamic, { props: finalProps });
       this.templateChanged = false;
       return this.templateVNode;
     }
   }
 };
+</script>

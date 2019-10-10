@@ -17,9 +17,9 @@ const requireComponent = require.context(
   // 其组件目录的相对路径
   './lib-components',
   // 是否查询其子目录
-  false,
+  true,
   // 匹配基础组件文件名的正则表达式
-  /\w+\.(vue|js)$/
+  /\w+\.vue$/
 )
 
 requireComponent.keys().forEach(fileName => {

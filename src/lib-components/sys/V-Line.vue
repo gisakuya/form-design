@@ -9,14 +9,15 @@
 </template>
 
 <script>
-import { GetPath, GetPathRect, IsPointInPath } from "./VLineUtility";
+import { GetPath, GetPathRect, IsPointInPath } from "./lineUtility";
 import { QuZheng } from "./utility";
+import CommonMixin from "./componentMixin";
 
 export default {
-    name: 'VLine',
     inject: [
         'onComponentCreated', 
         'onComponentActived', 
+        'onComponentDeleted',
         'getComponentByName',
     ],
     data: function(){
@@ -31,6 +32,8 @@ export default {
             drawContext: null,
             // 路径的所有点组成
             drawPath: null,
+            // 是否自定义路径
+            isCustDrawPath: false,
 
             // 连接的源和目标
             source:  null,
@@ -46,9 +49,9 @@ export default {
             // 是否显示边框
             showBorderInner: false,
 
-            // 宽度
+            // 线条宽度
             width: null,
-            // 颜色
+            // 线条颜色
             color: null,
         };
     },
@@ -92,33 +95,28 @@ export default {
                 title: '路径',
                 name: 'path',
                 get: function(){
+                    if(!this.isCustDrawPath) return;
                     return this.drawPath ?
                             this.drawPath.map(pt=>`${pt.x},${pt.y}`).join('|') :
                             '';
                 },
-                set: function(val){
+                set: function(val, i){
                     if(!val) return;
                     let points = val.split('|');
+                    let arr = [];
                     points.forEach(pt => {
                         const [ x, y ] = pt.split(',');
-                        this.drawPath.push({ x, y });
+                        arr.push({ x: +x, y: +y });
                     });
-                    this.paint();
-                }
+                    this.drawPath = arr;
+                    this.isCustDrawPath = true;
+                    if(!i) this.paint();
+                },
+                readonly: true
             }
         ]
     }],
     methods: {
-        // 外部使用
-        moveTo: function(pos){
-            this.drawPath = [ pos ];
-        },
-        // 外部使用
-        lineTo: function(pos) {
-            this.drawPath.push(pos);
-            this.paint();
-        },
-
         // 内部使用
         paint: function(){
             if(!this.drawPath || this.drawPath.length == 1) return;
@@ -164,6 +162,7 @@ export default {
             const rect2 = this.dest.el.getRect();
 
             this.drawPath = GetPath(rect1, pos1, rect2, pos2);
+            this.isCustDrawPath = false;
 
             this.paint();
         },
@@ -173,6 +172,7 @@ export default {
             if(this.dragging)
             {
                 this.draggingHandler(ev);
+                this.isCustDrawPath =  true;
             }
             else if(this.dest)
             {
@@ -232,6 +232,7 @@ export default {
 
         // 删除自己
         delSelf: function(){
+            this.onComponentDeleted(this);
             this.$emit("Destory");
             this.$el.parentNode.removeChild(this.$el);
             this.$destroy();
@@ -246,7 +247,17 @@ export default {
         subscribeEvent: function(com){
             com.$on("DotPosChanged", this.refreshPath);
             com.$on("Destory", this.delSelf);
-        }
+        },
+
+        // 所有组件的布局完成
+        allComponentLayoutFinished: function(){
+            if(!this.isCustDrawPath){
+                this.refreshPath();
+            }
+            else{
+                this.paint();
+            }
+        },
     },
     computed: {
         // 是否显示border
@@ -266,7 +277,7 @@ export default {
         this.drawContext = this.$el.getContext('2d');
 
         // document
-        this.$el.parentNode.addEventListener("mouseup", this.docMouseUp);
+         this.$parent.$el.addEventListener("mouseup", this.docMouseUp);
 
         // 发送事件给父
         this.onComponentCreated(this);
@@ -287,7 +298,8 @@ export default {
     destroyed: function(){
         if(this.source) this.unSubscribeEvent(this.source.el);
         if(this.dest) this.unSubscribeEvent(this.dest.el);
-    }
+    },
+    mixins: [ CommonMixin ]
 }
 </script>
 

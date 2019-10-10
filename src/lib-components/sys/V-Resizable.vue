@@ -45,6 +45,7 @@
 
 <script>
 import { QuZheng } from "./utility";
+import CommonMixin from "./componentMixin";
 
 var mouse = {
     x: 0,
@@ -66,12 +67,13 @@ var mouse = {
 }
 
 export default {
-    name: 'VResizable',
     inject: [
         'onComponentCreated', 
         'onComponentActived',
+        'onComponentDeleted',
+        'onComponentDotClick',
         'createNewComponentName',
-        'isComponentNameVaild'
+        'isComponentNameVaild',
     ],
     data: function() {
         return {
@@ -82,11 +84,9 @@ export default {
             name: null,
             dragging: false,
             showBorderInner: false,
-            isActive: false
+            isActive: false,
+            connectMode: false
         };
-    },
-    props: {
-        connectMode: Boolean
     },
     designProps: [
         {
@@ -140,13 +140,21 @@ export default {
                         this.h = +tmp[1];
                         if(!i) this.emitDotPosChange();
                     },
+                    init: function(val){
+                        if(val){
+                            let tmp = val.split(',');
+                            this.w = +tmp[0];
+                            this.h = +tmp[1];
+                        }
+                        else{
+                            this.w = this.$el.offsetWidth;
+                            this.h = this.$el.offsetHeight;
+                        }
+                    }
                 },
             ]
         }
     ],
-    designPropsInitFinish: function(){
-        this.emitDotPosChange();
-    },
     methods: {
         // 供外部使用
         setPos: function(pos){
@@ -196,8 +204,8 @@ export default {
         },
 
         // Dot
-        dotClick: function(ev, name){
-            this.$emit('DotClick', this, name);
+        dotClick: function(ev, dot){
+            this.onComponentDotClick(`${this.name}.${dot}`, ev);
         },
         dotMouseDown: function(ev, handler){
             if(this.connectMode) return;
@@ -284,6 +292,7 @@ export default {
 
         // 删除自己
         delSelf: function(){
+            this.onComponentDeleted(this);
             this.$emit("Destory");
             this.$el.parentNode.removeChild(this.$el);
             this.$destroy();
@@ -317,20 +326,6 @@ export default {
                 borderColor: this.isShowBorder ? '#9ed0fa' : 'transparent',
             };
         },
-        // 模板
-        tpl: function(){
-            const designProps = this.$options.designProps;
-            if(!designProps || designProps.length == 0) return null;
-            for (let i = 0; i < designProps.length; i++) {
-                const g = designProps[i];
-                if(!g.props) continue;
-                for (let j = 0; j < g.props.length; j++) {
-                    const prop = g.props[j];
-                    if(!prop.name) continue;
-                    console.log(prop.name);
-                }
-            }
-        }
     },
     watch: {
         isActive: function(val){
@@ -339,12 +334,13 @@ export default {
     },
     mounted: function() {
         // document
-        this.$el.parentNode.addEventListener("mousemove", this.docMouseMove);
-        this.$el.parentNode.addEventListener("mouseup", this.docMouseUp);
+        this.$parent.$el.addEventListener("mousemove", this.docMouseMove);
+        this.$parent.$el.addEventListener("mouseup", this.docMouseUp);
 
         // 发送事件给父
         this.onComponentCreated(this);
-    }
+    },
+    mixins: [ CommonMixin ]
 }
 </script>
 

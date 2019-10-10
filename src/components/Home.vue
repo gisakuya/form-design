@@ -25,35 +25,38 @@
           @mousemove.native="mouseMove" 
           @mouseup.native="mouseUp">
 
+          <v-line-simple ref="vline"></v-line-simple>
+
           <v-runtime-template :parent="this" :template="tpl" ref="vrt"
-              style="position:relative;height: 70%;">
+              style="position:relative; height: 70%">
           </v-runtime-template>
 
-          <div style="height: 30%;">
-            <textarea style="width: 100%; height:100%;" :value="tpl" @change="tplChange($event.target.value)"></textarea>
+          <div style="position:relative; height: 30%;">
+            <textarea :value="exportTpl" @change="tplChange($event.target.value)" style="width: 100%; height:100%;"/>
           </div>
       </el-main>
     </el-container>
-    <el-aside width="250px" style="background-color: rgb(238, 241, 246);">
+
+    <el-aside width="260px" style="background-color: rgb(238, 241, 246);">
       <el-menu :default-openeds="['0','1','2','3','4','6','7','8','9']">
           <el-submenu v-for="(group, index) in cur.designProps" :key="group.title" :index="String(index)">
             <template slot="title">
               <i class="el-icon-edit"></i> {{ group.title }}
             </template>
+            <li>
             <table>
               <tr v-for="prop in group.props" :key="prop.title">
-                <td style="width:60px;"><span style="margin-left:5px;font-size:14px">{{ prop.title }}</span></td>
+                <td style="width:80px;"><span style="margin-left:5px;font-size:14px">{{ prop.title }}</span></td>
                 <td>
-                    <input v-if="prop.get" class="el-input__inner"
+                    <input class="el-input__inner"
                       :title="prop.tooltip"
-                      :value="prop.get.call(cur.activeCom)" 
-                      @change="prop.set.call(cur.activeCom, $event.target.value)"/>
-                    <input v-else class="el-input__inner"
-                      :title="prop.tooltip"
-                      v-model="cur.activeCom[prop.name]"/>
+                      :value="prop.get.call(prop.ctx)" 
+                      :readonly="prop.readonly"
+                      @change="prop.set.call(prop.ctx, $event.target.value)"/>
                   </td>
               </tr>
             </table>
+            </li>
           </el-submenu>
       </el-menu>
     </el-aside>
@@ -61,10 +64,7 @@
 </template>
 
 <script>
-import VRuntimeTemplate from "./VRuntimeTemplate";
-import VResizable from "./VResizable";
-import VLine from "./VLine";
-import { Promise } from 'q';
+import Vue from 'vue'
 
 let mouse = {};
 
@@ -74,10 +74,11 @@ export default {
     return {
         onComponentCreated: this.onComponentCreated,
         onComponentActived: this.onComponentActived,
+        onComponentDeleted: this.onComponentDeleted,
+        onComponentDotClick: this.onComponentDotClick,
         getComponentByName: this.getComponentByName,
         createNewComponentName: this.createNewComponentName,
-        isComponentNameVaild: this.isComponentNameVaild,
-        onComponentTplChanged: this.onComponentTplChanged
+        isComponentNameVaild: this.isComponentNameVaild
     }
   },
   data() {
@@ -92,26 +93,36 @@ export default {
       props: [{ title: '一般属性', props:[] }],
       drawLineMode: false,
       tpl: `
-        <div>
           <v-resizable name="cmp1">
-            <nb-sun2000-36k></nb-sun2000-36k>
+            <nb-sun2000-36k cust-attr="haha"></nb-sun2000-36k>
           </v-resizable>
 
           <v-resizable name="cmp2" pos="500,150" size="200,100">
-            <nb-sun2000-36k></nb-sun2000-36k>
+            <nb-sun2000-36k cust-attr="kaka"></nb-sun2000-36k>
           </v-resizable>
 
           <v-line source="cmp1.rc" dest="cmp2.lc"></v-line>
-        </div>
       `,
       cur: {},
+      containerRect: null,
       components: []
+    }
+  },
+  computed: {
+    exportTpl: function(){
+      let tpl = "";
+      for (let i = 0; i < this.components.length; i++) {
+        const cmp = this.components[i];
+        tpl += cmp.exportTpl;
+      }
+      return tpl;
     }
   },
   methods: {
       // 组件创建时
       onComponentCreated: function(com){
         console.log("onComponentCreated", com);
+        com.connectMode = this.drawLineMode;
         this.components.push(com);
       },
 
@@ -119,10 +130,10 @@ export default {
       onComponentActived: function(com, isActived){
         // console.log("onComponentActived", com, isActived);
         if(isActived){
+
           this.cur = {
             activeCom: com,
-            designProps: (com.$options.designProps && com.$options.designProps.length) ? 
-                            com.$options.designProps : this.props
+            designProps: com.getDesignPropsByGroup.call(com)
           };
         }
         else{
@@ -134,9 +145,35 @@ export default {
         }
       },
 
-      // 组件模板发生变化时
-      onComponentTplChanged: function(com, tpl){
+      // 组件删除时
+      onComponentDeleted: function(com){
+        const index = this.components.indexOf(com);
+        if(index != -1){
+          this.components.splice(index, 1);
+        }
+      },
 
+      // 组件的点点击时
+      onComponentDotClick: function(comDot, ev){
+        if(!this.drawLineMode) return;
+        
+        const vline = this.$refs.vline;
+        let x = ev.x - this.containerRect.left;
+        let y = ev.y - this.containerRect.top;
+        if(vline.isSourceSet()){
+          vline.saveDest(comDot);
+
+          let curTpl = this.exportTpl;
+          let newTpl = `<v-line source="${vline.source}" dest="${vline.dest}"></v-line>`;
+          this.tplChange(curTpl + newTpl);
+
+          vline.reset();
+        }
+        else{
+          this.$refs.vrt.$el.appendChild(this.$refs.vline.$el);
+          vline.moveTo({ x, y });
+          vline.saveSource(comDot);
+        }
       },
 
       // 通过名称获取组件
@@ -175,40 +212,20 @@ export default {
           this.$nextTick(()=>{
             for (let i = 0; i < this.components.length; i++) {
               const com = this.components[i];
-              const designPropGroups = com.$options.designProps;
-              if(!designPropGroups || designPropGroups.length == 0) continue;
-              let designProps = [];
-              for (let i = 0; i < designPropGroups.length; i++) {
-                const group = designPropGroups[i];
-                if(group.props){
-                  designProps.push(...group.props);
-                }
-              }
-              for (let j = 0; j < designProps.length; j++) {
-                const designProp = designProps[j];
-                if(!designProp.name) continue;
-                const designPropVal = com.$attrs[designProp.name] || designProp.default;
-                if(designProp.init){
-                  designProp.init.call(com, designPropVal);
-                }
-                else if(designProp.set){
-                  designProp.set.call(com, designPropVal, true);
-                }
-                else{
-                  com.$data[designProp.name] = designPropVal;
-                }
+              if(com.initDesignProps){
+                com.initDesignProps.call(com);
               }
             }
 
             this.$nextTick(()=>{
               for (let i = 0; i < this.components.length; i++) {
                 const com = this.components[i];
-                if(com.$options.designPropsInitFinish){
-                  com.$options.designPropsInitFinish.call(com);
+                if(com.allComponentLayoutFinished){
+                  com.allComponentLayoutFinished.call(com);
                 }
-              } 
-            });
-          });
+              }
+            })
+          })
       },
 
       // 拖拉组件
@@ -217,34 +234,39 @@ export default {
         mouse.offsetY = ev.offsetY;
         ev.dataTransfer.setData("Text", item.componentName);
 
-        cur.dragComponent = true;
+        this.cur.dragComponent = true;
       },
       allowDrop: function(ev) {
-        if(cur.dragComponent){
+        if(this.cur.dragComponent){
           ev.preventDefault();
         }
       },
       drop: function(ev) {
         ev.preventDefault();
         var componentName = ev.dataTransfer.getData("Text"); // 组件名称
-        cur.dragComponent = false;
 
-        console.log(componentName);
+        let x = ev.x - this.containerRect.left - mouse.offsetX;
+        let y = ev.y - this.containerRect.top - mouse.offsetY;
+
+        let curTpl = this.exportTpl;
+        let newTpl = `<v-resizable pos="${x},${y}"><${componentName}></${componentName}></v-resizable>`;
+        this.tplChange(curTpl + newTpl);
+
+        this.cur.dragComponent = false;
       },
 
       // 连线
       mouseDown: function(ev) {
       },
       mouseMove: function(ev) {
-        if(this.drawLineMode && cur.line){
-            // cur.line.lineTo(container.getPos(ev));
+        const vline = this.$refs.vline;
+        if(this.drawLineMode && vline.isSourceSet()){
+            let x = ev.x - this.containerRect.left;
+            let y = ev.y - this.containerRect.top;
+            vline.lineTo({x, y});
         }
       },
       mouseUp: function(ev) {
-        if(this.drawLineMode && ev.button == 2){
-          // 取消画线
-          cur.line = null;
-        }
       },
 
         // 人为改变模板
@@ -261,17 +283,25 @@ export default {
 
     // 初始化所有组件的设计属性
     this.initComponentsDesignProps();
+
+    // 容器位置
+    this.$nextTick(()=>{
+      this.containerRect = this.$refs.vrt.$el.getBoundingClientRect();
+    });
   },
-  components: {
-    VRuntimeTemplate,
-    VResizable,
-    VLine
+  watch: {
+    drawLineMode: function(val){
+      for (let i = 0; i < this.components.length; i++) {
+        const cmp = this.components[i];
+        cmp.connectMode = this.drawLineMode;
+      }
+    }
   }
 };
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style lang="less" scoped>
+<style lang="less">
   .el-menu-item {
     cursor: move;
   }
