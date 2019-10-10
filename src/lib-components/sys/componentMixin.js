@@ -1,9 +1,22 @@
 import groupBy from "lodash/groupBy";
 
 export default {
+    inject: [
+        'onComponentCreated', 
+        'onComponentActived',
+        'onComponentDeleted'
+    ],
     data: function(){
         return {
-            cache: {}
+            name: null,
+            x: 0,
+            y: 0,
+            w: 0,
+            h: 0,
+            draggingHanlder: null,
+            showBorderInner: false,
+            isActive: false,
+            cache: {},
         }
     },
     methods: {
@@ -72,10 +85,27 @@ export default {
                     prop.set.call(ctx, val, true);
                 }
            }
-        }
+        },
+
+        mouseEnter: function(){
+            this.showBorderInner = true;
+        },
+        mouseLeave: function(){
+            this.showBorderInner = false 
+        },
+
+        delSelf: function(){
+            this.onComponentDeleted(this);
+            this.$emit("Destory");
+            this.$el.parentNode.removeChild(this.$el);
+            this.$destroy();
+        },
     },
 
     computed: {
+        isShowBorder: function(){
+            return this.showBorderInner || this.isActive;
+        },
         exportTpl: function(){
             let tpl = (ctx, childTpl) => {
                 if(!ctx) return ;
@@ -102,5 +132,18 @@ export default {
 
             return thisTpl;
         }
-    }
+    },
+
+    watch: {
+        isActive: function(val){
+            this.onComponentActived(this, val);
+        }
+    },
+
+    mounted: function() {
+        this.$parent.$el.addEventListener("mousemove", this.docMouseMove);
+        this.$parent.$el.addEventListener("mouseup", this.docMouseUp);
+
+        this.onComponentCreated(this);
+    },
 }

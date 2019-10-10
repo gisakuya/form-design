@@ -1,7 +1,6 @@
 <template>
   <canvas 
     :style="selfStyle" :width="w" :height="h" 
-    @mousemove="mouseMove($event)"
     @mousedown.left.stop="mouseDown($event);"
     @keyup.delete="delSelf"
     tabindex="1"
@@ -9,25 +8,35 @@
 </template>
 
 <script>
-import { GetPath, GetPathRect, IsPointInPath } from "./lineUtility";
-import { QuZheng } from "./utility";
-import CommonMixin from "./componentMixin";
+import { GetPath, GetPathRect, IsPointInPath } from "./lineUtility"
+import { QuZheng } from "./utility"
+import CommonMixin from "./componentMixin"
+
+var mouse = {
+    x: 0,
+    y: 0,
+    data: null,
+    setPos: function(pos){
+        this.x = pos.x;
+        this.y = pos.y;
+    },
+    setData: function(data){
+        this.data = data;
+    },
+    isOffsetGreaterThan(ev, offset){
+        const ox = ev.x - this.x;
+        const oy = ev.y - this.y;
+        return ox >= offset || ox <= offset || oy >= offset || oy <= offset;
+    }
+}
 
 export default {
     inject: [
-        'onComponentCreated', 
-        'onComponentActived', 
-        'onComponentDeleted',
         'getComponentByName',
+        'getMouseOffset'
     ],
     data: function(){
         return {
-            // 画布的坐标和长宽
-            x: 0,
-            y: 0,
-            w: 0,
-            h: 0,
-
             // 画布的上下文和路线
             drawContext: null,
             // 路径的所有点组成
@@ -39,23 +48,12 @@ export default {
             source:  null,
             dest: null,
 
-            // 线条是否处于拖曳状态
-            dragging: false,
-            // 被拖曳的线条的处理器
-            draggingHandler: null,
-
-            // 线条是否激活
-            isActive: false,
-            // 是否显示边框
-            showBorderInner: false,
-
             // 线条宽度
             width: null,
             // 线条颜色
             color: null,
         };
     },
-    props: { },
     designProps: [{
         title: '一般属性',
         props: [
@@ -168,102 +166,87 @@ export default {
         },
 
         // 内部使用
-        mouseMove: function(ev){
-            if(this.dragging)
+        mouseDown: function(ev){
+            const el = this.$el;
+            let pointInPath = IsPointInPath(this.getMouseOffset(ev), this.drawPath, 5);
+            if(pointInPath){
+                let [pt, npt] = pointInPath.path;
+                let lineType = pointInPath.type;
+                let orgPt = Object.assign({}, pt);
+                let orgNPt = Object.assign({}, npt);
+                let oev = { x: ev.x, y: ev.y };
+                this.draggingHandler = ev => {
+                    let ox = ev.x - oev.x;
+                    let oy = ev.y - oev.y;
+                    if(lineType == "VL"){
+                        pt.x = QuZheng(orgPt.x + ox);
+                        npt.x =  pt.x;
+                    }
+                    else if(lineType == "HL"){
+                        pt.y = QuZheng(orgPt.y + oy);
+                        npt.y = pt.y
+                    }
+                };
+                
+                this.isActive = true;
+            }
+        },
+
+        docMouseMove: function(ev){
+            if(this.draggingHandler)
             {
                 this.draggingHandler(ev);
                 this.isCustDrawPath =  true;
             }
-            else if(this.dest)
+            else
             {
                 const el = this.$el;
-                let pointInPath = IsPointInPath({ x: el.offsetLeft + ev.offsetX, y: el.offsetTop + ev.offsetY }, this.drawPath, 5);
+                let pointInPath = IsPointInPath(this.getMouseOffset(ev), this.drawPath, 5);
                 if(pointInPath){
                     // 相当于mouse-enter
                     el.style.cursor = pointInPath.type == "VL" ? "e-resize" : pointInPath.type == "HL" ? "n-resize" : "";
-                    this.showBorderInner = true;
+                    this.mouseEnter();
                 }
                 else{
                     // 相当于mouse-leave
                     el.style.cursor = "";
-                    this.showBorderInner = false;
+                    this.mouseLeave();
                 }
             }
             this.paint();
         },
 
-        mouseDown: function(ev){
-            const el = this.$el;
-            let pointInPath = IsPointInPath({ x: el.offsetLeft + ev.offsetX, y: el.offsetTop + ev.offsetY }, this.drawPath, 5);
-            if(pointInPath){
-                let [pt, npt] = pointInPath.path;
-                let lineType = pointInPath.type;
-                let { x: x0, y: y0 } = ev;
-                this.draggingHandler = nev => {
-                    let { x: x1, y: y1 } = nev;
-                    let ox = x1 - x0;
-                    let oy = y1 - y0;
-                    if(lineType == "VL"){
-                        pt.x += ox;
-                        npt.x += ox;
-                    }
-                    else if(lineType == "HL"){
-                        pt.y += oy;
-                        npt.y += oy;
-                    }
-                    x0 = x1;
-                    y0 = y1;
-                };
-                
-                this.dragging = true;
-                this.isActive = true;
-            }
-        },
-
         docMouseUp: function(ev){
-            if(!this.dragging){
+            if(!this.draggingHandler){
                 this.isActive = false;
                 this.paint();
             }
 
             this.draggingHandler = null;
-            this.dragging = false;
         },
 
-        // 删除自己
-        delSelf: function(){
-            this.onComponentDeleted(this);
-            this.$emit("Destory");
-            this.$el.parentNode.removeChild(this.$el);
-            this.$destroy();
-        },
-
-        // 删除事件
+        // 取消订阅
         unSubscribeEvent: function(com){
             com.$off("DotPosChanged", this.refreshPath);
             com.$off("Destory", this.delSelf);
         },
-        // 订阅事件
+        // 订阅
         subscribeEvent: function(com){
             com.$on("DotPosChanged", this.refreshPath);
             com.$on("Destory", this.delSelf);
         },
 
         // 所有组件的布局完成
-        allComponentLayoutFinished: function(){
-            if(!this.isCustDrawPath){
-                this.refreshPath();
+        layoutFinished: function(){
+            if(this.isCustDrawPath){
+                this.paint();
             }
             else{
-                this.paint();
+                this.refreshPath();
             }
         },
     },
     computed: {
-        // 是否显示border
-        isShowBorder: function(){
-            return this.showBorderInner || this.isActive;
-        },
         // 本身样式
         selfStyle: function(){
             return { 
@@ -275,12 +258,6 @@ export default {
     mounted: function() {
         // 获取画图上下文
         this.drawContext = this.$el.getContext('2d');
-
-        // document
-         this.$parent.$el.addEventListener("mouseup", this.docMouseUp);
-
-        // 发送事件给父
-        this.onComponentCreated(this);
     },
     watch: {
         source: function(val, oldVal){
@@ -291,9 +268,6 @@ export default {
             if(oldVal) this.unSubscribeEvent(oldVal.el);
             if(val) this.subscribeEvent(val.el);
         },
-        isActive: function(val){
-            this.onComponentActived(this, val);
-        }
     },
     destroyed: function(){
         if(this.source) this.unSubscribeEvent(this.source.el);

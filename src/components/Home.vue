@@ -21,9 +21,10 @@
       <el-main 
           @dragover.native="allowDrop" 
           @drop.native="drop" 
-          @mousedown.native="mouseDown" 
-          @mousemove.native="mouseMove" 
-          @mouseup.native="mouseUp">
+          @mousedown.native="mouseDown"
+          @mousemove.native="mouseMove"
+          @mouseup.native="mouseUp"
+          >
 
           <v-line-simple ref="vline"></v-line-simple>
 
@@ -78,7 +79,8 @@ export default {
         onComponentDotClick: this.onComponentDotClick,
         getComponentByName: this.getComponentByName,
         createNewComponentName: this.createNewComponentName,
-        isComponentNameVaild: this.isComponentNameVaild
+        isComponentNameVaild: this.isComponentNameVaild,
+        getMouseOffset: this.getMouseOffset
     }
   },
   data() {
@@ -158,8 +160,6 @@ export default {
         if(!this.drawLineMode) return;
         
         const vline = this.$refs.vline;
-        let x = ev.x - this.containerRect.left;
-        let y = ev.y - this.containerRect.top;
         if(vline.isSourceSet()){
           vline.saveDest(comDot);
 
@@ -171,9 +171,89 @@ export default {
         }
         else{
           this.$refs.vrt.$el.appendChild(this.$refs.vline.$el);
-          vline.moveTo({ x, y });
+          vline.moveTo(this.getMouseOffset(ev));
           vline.saveSource(comDot);
         }
+      },
+
+      // 拖拉组件
+      drag: function(ev, item) {
+        mouse.offsetX = ev.offsetX;
+        mouse.offsetY = ev.offsetY;
+        ev.dataTransfer.setData("Text", item.componentName);
+
+        this.cur.dragComponent = true;
+      },
+      allowDrop: function(ev) {
+        if(this.cur.dragComponent){
+          ev.preventDefault();
+        }
+      },
+      drop: function(ev) {
+        ev.preventDefault();
+        var componentName = ev.dataTransfer.getData("Text"); // 组件名称
+
+        let x = ev.x - this.containerRect.left - mouse.offsetX;
+        let y = ev.y - this.containerRect.top - mouse.offsetY;
+
+        let curTpl = this.exportTpl;
+        let newTpl = `<v-resizable pos="${x},${y}"><${componentName}></${componentName}></v-resizable>`;
+        this.tplChange(curTpl + newTpl);
+
+        this.cur.dragComponent = false;
+      },
+
+      // 鼠标按下
+      mouseDown: function(ev) {
+      },
+
+      // 鼠标移动
+      mouseMove: function(ev) {
+        const vline = this.$refs.vline;
+        if(this.drawLineMode && vline.isSourceSet()){
+            // 画线中
+            let x = ev.x - this.containerRect.left;
+            let y = ev.y - this.containerRect.top;
+            vline.lineTo({x, y});
+        }
+      },
+
+      // 鼠标弹起
+      mouseUp: function(ev) {
+        if(ev.button == 2){
+            // 右键, 取消画线
+            const vline = this.$refs.vline;
+            vline.reset();
+        }
+      },
+
+      // 人为改变模板
+      tplChange: function(val){
+        this.components = [];
+        this.tpl = val;
+        this.$refs.vrt.refresh();
+        this.initComponentsDesignProps();
+      },
+
+      // 初始化所有组件的设计属性
+      initComponentsDesignProps: function(){
+          this.$nextTick(()=>{
+            for (let i = 0; i < this.components.length; i++) {
+              const com = this.components[i];
+              if(com.initDesignProps){
+                com.initDesignProps.call(com);
+              }
+            }
+
+            this.$nextTick(()=>{
+              for (let i = 0; i < this.components.length; i++) {
+                const com = this.components[i];
+                if(com.layoutFinished){
+                  com.layoutFinished.call(com);
+                }
+              }
+            })
+          })
       },
 
       // 通过名称获取组件
@@ -207,75 +287,12 @@ export default {
         return true;
       },
 
-      // 初始化所有组件的设计属性
-      initComponentsDesignProps: function(){
-          this.$nextTick(()=>{
-            for (let i = 0; i < this.components.length; i++) {
-              const com = this.components[i];
-              if(com.initDesignProps){
-                com.initDesignProps.call(com);
-              }
-            }
-
-            this.$nextTick(()=>{
-              for (let i = 0; i < this.components.length; i++) {
-                const com = this.components[i];
-                if(com.allComponentLayoutFinished){
-                  com.allComponentLayoutFinished.call(com);
-                }
-              }
-            })
-          })
-      },
-
-      // 拖拉组件
-      drag: function(ev, item) {
-        mouse.offsetX = ev.offsetX;
-        mouse.offsetY = ev.offsetY;
-        ev.dataTransfer.setData("Text", item.componentName);
-
-        this.cur.dragComponent = true;
-      },
-      allowDrop: function(ev) {
-        if(this.cur.dragComponent){
-          ev.preventDefault();
-        }
-      },
-      drop: function(ev) {
-        ev.preventDefault();
-        var componentName = ev.dataTransfer.getData("Text"); // 组件名称
-
-        let x = ev.x - this.containerRect.left - mouse.offsetX;
-        let y = ev.y - this.containerRect.top - mouse.offsetY;
-
-        let curTpl = this.exportTpl;
-        let newTpl = `<v-resizable pos="${x},${y}"><${componentName}></${componentName}></v-resizable>`;
-        this.tplChange(curTpl + newTpl);
-
-        this.cur.dragComponent = false;
-      },
-
-      // 连线
-      mouseDown: function(ev) {
-      },
-      mouseMove: function(ev) {
-        const vline = this.$refs.vline;
-        if(this.drawLineMode && vline.isSourceSet()){
-            let x = ev.x - this.containerRect.left;
-            let y = ev.y - this.containerRect.top;
-            vline.lineTo({x, y});
-        }
-      },
-      mouseUp: function(ev) {
-      },
-
-        // 人为改变模板
-      tplChange: function(val){
-        this.components = [];
-        this.tpl = val;
-        this.$refs.vrt.refresh();
-        this.initComponentsDesignProps();
-      },
+      // 获取鼠标偏移量
+      getMouseOffset(ev){
+        const x = ev.x - this.containerRect.left;
+        const y  = ev.y - this.containerRect.top;
+        return { x, y };
+      }
   },
   mounted: function(params) {
     // 禁止右键菜单

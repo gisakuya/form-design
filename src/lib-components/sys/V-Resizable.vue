@@ -10,48 +10,39 @@
       <div v-show="isShowBorder" class="layer"></div>
       <!-- 左上角 -->
       <div class="ctl-dot tl" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftUp)"
-            @click.left.stop="dotClick($event, 'tl')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftUp, 'tl')"></div>
       <!-- 右上角 -->
       <div class="ctl-dot tr" :class="dotCls" v-show="isShowBorder" 
-            @mousedown.left.stop="dotMouseDown($event, dotMoveRightUp)"
-            @click.left.stop="dotClick($event, 'tr')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveRightUp, 'tr')"></div>
       <!-- 左下角 -->
       <div class="ctl-dot lb" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftDown)"
-            @click.left.stop="dotClick($event, 'lb')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftDown, 'lb')"></div>
       <!-- 右下角 -->
       <div class="ctl-dot rb" :class="dotCls" v-show="isShowBorder" 
-            @mousedown.left.stop="dotMouseDown($event, dotMoveRightDown)"
-            @click.left.stop="dotClick($event, 'rb')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveRightDown, 'rb')"></div>
       <!-- 上中 -->
       <div class="ctl-dot tc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveUp)"
-            @click.left.stop="dotClick($event, 'tc')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveUp, 'tc')"></div>
       <!-- 下中 -->
       <div class="ctl-dot bc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveDown)"
-            @click.left.stop="dotClick($event, 'bc')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveDown, 'bc')"></div>
       <!-- 左中 -->
       <div class="ctl-dot lc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveLeft)"
-            @click.left.stop="dotClick($event, 'lc')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveLeft, 'lc')"></div>
       <!-- 右中 -->
       <div class="ctl-dot rc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveRight)"
-            @click.left.stop="dotClick($event, 'rc')"></div>
+            @mousedown.left.stop="dotMouseDown($event, dotMoveRight, 'rc')"></div>
   </div>
 </template>
 
 <script>
-import { QuZheng } from "./utility";
-import CommonMixin from "./componentMixin";
+import { QuZheng } from "./utility"
+import CommonMixin from "./componentMixin"
 
 var mouse = {
     x: 0,
     y: 0,
     data: null,
-    handler: ()=>{},
     setPos: function(pos){
         this.x = pos.x;
         this.y = pos.y;
@@ -68,23 +59,12 @@ var mouse = {
 
 export default {
     inject: [
-        'onComponentCreated', 
-        'onComponentActived',
-        'onComponentDeleted',
-        'onComponentDotClick',
-        'createNewComponentName',
         'isComponentNameVaild',
+        'createNewComponentName',
+        'onComponentDotClick'
     ],
     data: function() {
         return {
-            x: 0,
-            y: 0,
-            w: 0,
-            h: 0,
-            name: null,
-            dragging: false,
-            showBorderInner: false,
-            isActive: false,
             connectMode: false
         };
     },
@@ -204,53 +184,43 @@ export default {
         },
 
         // Dot
-        dotClick: function(ev, dot){
-            this.onComponentDotClick(`${this.name}.${dot}`, ev);
-        },
-        dotMouseDown: function(ev, handler){
-            if(this.connectMode) return;
+        dotMouseDown: function(ev, handler, dot){
+            if(this.connectMode){
+                 this.onComponentDotClick(`${this.name}.${dot}`, ev);
+                 return;
+            }
 
             // 记录鼠标初始值
             mouse.setData({ orgW: this.w, orgH: this.h, orgX: this.x, orgY: this.y, x: ev.x, y: ev.y });
-            mouse.handler = handler;
-
-            this.dragging = true;
+            this.draggingHandler = handler;
             this.isActive = true;
             document.body.style.cursor = getComputedStyle(ev.currentTarget).cursor;
         },
 
         // Self
-        mouseEnter: function(){
-            this.showBorderInner = true;
-        },
-        mouseLeave: function(){
-            this.showBorderInner = false 
-        },
         mouseDown: function(ev, handler){
             // 记录鼠标初始值
             mouse.setData({ offsetX: ev.x - this.x, offsetY: ev.y - this.y });
-            mouse.handler = handler;
-
-            this.dragging = true;
+            this.draggingHandler = handler;
             this.isActive = true;
         },
 
         // Document
         docMouseMove: function(ev){
-            if(!this.dragging) return;
+            if(!this.draggingHandler) return;
             if(!mouse.isOffsetGreaterThan(ev, 10)) return;
 
-            mouse.handler(ev.x, ev.y);
+            this.draggingHandler(ev.x, ev.y);
             mouse.setPos(ev);
 
             this.emitDotPosChange();
         },
         docMouseUp: function(){
-            if(!this.dragging){
+            if(!this.draggingHandler){
                 this.isActive = false;
             }
 
-            this.dragging = false;
+            this.draggingHandler = null;
             document.body.style.cursor = "";
         },
 
@@ -290,14 +260,6 @@ export default {
             this.y = QuZheng(y - mouse.data.offsetY);
         },
 
-        // 删除自己
-        delSelf: function(){
-            this.onComponentDeleted(this);
-            this.$emit("Destory");
-            this.$el.parentNode.removeChild(this.$el);
-            this.$destroy();
-        },
-
         // 发送事件
         emitDotPosChange: function(){
             this.$nextTick(()=>{
@@ -326,19 +288,6 @@ export default {
                 borderColor: this.isShowBorder ? '#9ed0fa' : 'transparent',
             };
         },
-    },
-    watch: {
-        isActive: function(val){
-            this.onComponentActived(this, val);
-        }
-    },
-    mounted: function() {
-        // document
-        this.$parent.$el.addEventListener("mousemove", this.docMouseMove);
-        this.$parent.$el.addEventListener("mouseup", this.docMouseUp);
-
-        // 发送事件给父
-        this.onComponentCreated(this);
     },
     mixins: [ CommonMixin ]
 }
