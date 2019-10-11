@@ -24,15 +24,17 @@
           @mousedown.native="mouseDown"
           @mousemove.native="mouseMove"
           @mouseup.native="mouseUp"
+          @keyup.delete.native="delComponent"
+          tabindex="1"
           >
 
           <v-line-simple ref="vline"></v-line-simple>
 
           <v-runtime-template :parent="this" :template="tpl" ref="vrt"
-              style="position:relative; height: 70%">
+              style="position:relative; height: 700px;">
           </v-runtime-template>
 
-          <div style="position:relative; height: 30%;">
+          <div style="position:relative; height: 300px;">
             <textarea :value="exportTpl" @change="tplChange($event.target.value)" style="width: 100%; height:100%;"/>
           </div>
       </el-main>
@@ -40,7 +42,7 @@
 
     <el-aside width="260px" style="background-color: rgb(238, 241, 246);">
       <el-menu :default-openeds="['0','1','2','3','4','6','7','8','9']">
-          <el-submenu v-for="(group, index) in cur.designProps" :key="group.title" :index="String(index)">
+          <el-submenu v-for="(group, index) in designProps" :key="group.title" :index="String(index)">
             <template slot="title">
               <i class="el-icon-edit"></i> {{ group.title }}
             </template>
@@ -74,13 +76,12 @@ export default {
   provide: function(){
     return {
         onComponentCreated: this.onComponentCreated,
-        onComponentActived: this.onComponentActived,
         onComponentDeleted: this.onComponentDeleted,
-        onComponentDotClick: this.onComponentDotClick,
         getComponentByName: this.getComponentByName,
         createNewComponentName: this.createNewComponentName,
         isComponentNameVaild: this.isComponentNameVaild,
-        getMouseOffset: this.getMouseOffset
+        getMouseOffset: this.getMouseOffset,
+        setMouseShape: this.setMouseShape
     }
   },
   data() {
@@ -105,9 +106,11 @@ export default {
 
           <v-line source="cmp1.rc" dest="cmp2.lc"></v-line>
       `,
-      cur: {},
+      line: null,
+      container: null,
       containerRect: null,
-      components: []
+      components: [],
+      cur: {}
     }
   },
   computed: {
@@ -118,6 +121,9 @@ export default {
         tpl += cmp.exportTpl;
       }
       return tpl;
+    },
+    designProps: function(){
+      return this.cur && this.cur.designProps ? this.cur.designProps : this.props;
     }
   },
   methods: {
@@ -127,111 +133,172 @@ export default {
         com.connectMode = this.drawLineMode;
         this.components.push(com);
       },
-
-      // 组件激活时
-      onComponentActived: function(com, isActived){
-        // console.log("onComponentActived", com, isActived);
-        if(isActived){
-
-          this.cur = {
-            activeCom: com,
-            designProps: com.getDesignPropsByGroup.call(com)
-          };
-        }
-        else{
-          if(this.cur.activeCom == com){
-            this.cur = {
-              designProps: this.props
-            }
-          }
-        }
-      },
-
       // 组件删除时
       onComponentDeleted: function(com){
+        console.log("onComponentDeleted", com);
         const index = this.components.indexOf(com);
         if(index != -1){
           this.components.splice(index, 1);
         }
       },
 
-      // 组件的点点击时
-      onComponentDotClick: function(comDot, ev){
-        if(!this.drawLineMode) return;
-        
-        const vline = this.$refs.vline;
-        if(vline.isSourceSet()){
-          vline.saveDest(comDot);
-
-          let curTpl = this.exportTpl;
-          let newTpl = `<v-line source="${vline.source}" dest="${vline.dest}"></v-line>`;
-          this.tplChange(curTpl + newTpl);
-
-          vline.reset();
-        }
-        else{
-          this.$refs.vrt.$el.appendChild(this.$refs.vline.$el);
-          vline.moveTo(this.getMouseOffset(ev));
-          vline.saveSource(comDot);
-        }
+      // 删除控件
+      delComponent: function(){
+          if(!this.cur.activeCom) return;
+          this.cur.activeCom.delSelf();
+          
+          this.cur = {};
       },
 
       // 拖拉组件
       drag: function(ev, item) {
-        mouse.offsetX = ev.offsetX;
-        mouse.offsetY = ev.offsetY;
-        ev.dataTransfer.setData("Text", item.componentName);
-
-        this.cur.dragComponent = true;
-      },
-      allowDrop: function(ev) {
-        if(this.cur.dragComponent){
-          ev.preventDefault();
+        this.cur = {
+          dragComponent: true,
+          componentName: item.componentName,
+          ox: ev.offsetX,
+          oy: ev.offsetY
         }
       },
-      drop: function(ev) {
+      allowDrop: function(ev) {
+        if(!this.cur.dragComponent) return;
         ev.preventDefault();
-        var componentName = ev.dataTransfer.getData("Text"); // 组件名称
+      },
+      drop: function(ev) {
+        if(!this.cur.dragComponent) return;
+        ev.preventDefault();
 
-        let x = ev.x - this.containerRect.left - mouse.offsetX;
-        let y = ev.y - this.containerRect.top - mouse.offsetY;
+        let { componentName, ox, oy } = this.cur;
+        let { x, y } = this.getMouseOffset(ev, { x: -ox, y: -oy })
 
         let curTpl = this.exportTpl;
         let newTpl = `<v-resizable pos="${x},${y}"><${componentName}></${componentName}></v-resizable>`;
         this.tplChange(curTpl + newTpl);
 
-        this.cur.dragComponent = false;
+        this.cur = {};
       },
 
       // 鼠标按下
       mouseDown: function(ev) {
+        if(this.cur.activeCom){
+          this.cur.activeCom.active = false;
+        }
+        
+        this.cur = {};
+        
+        // 查找激活组件
+        for (let i = 0; i < this.components.length; i++) {
+          const com = this.components[i];
+          if(com.isPointInBoundary(this.getMouseOffset(ev))){
+            if(com.exportMouseDown){
+              com.exportMouseDown(ev);
+            }
+            com.active =  true;
+            this.cur = {
+              activeCom: com,
+              activeComRect: { orgX: com.x, orgY: com.y, orgW: com.w, orgH: com.h },
+              designProps: com.getDesignPropsByGroup.call(com)
+            };
+            mouse = {
+                dragging: false,
+                draggingCount: 1,
+                orgX: ev.x,
+                orgY: ev.y
+            };
+            break;
+          }
+        }
+
+        const { activeCom } = this.cur;
+        if(this.drawLineMode && activeCom && activeCom.draggingDot){
+          // 画线模式
+          const vline = this.line;
+          if(vline.isSourceSet()){
+            vline.saveDest(activeCom.draggingDot);
+
+            let curTpl = this.exportTpl;
+            let newTpl = `<v-line source="${vline.source}" dest="${vline.dest}"></v-line>`;
+            this.tplChange(curTpl + newTpl);
+
+            vline.reset();
+          }
+          else{
+            this.container.$el.appendChild(this.line.$el);
+            vline.moveTo(this.getMouseOffset(ev));
+            vline.saveSource(activeCom.draggingDot);
+          }
+        }
       },
 
       // 鼠标移动
       mouseMove: function(ev) {
-        const vline = this.$refs.vline;
-        if(this.drawLineMode && vline.isSourceSet()){
-            // 画线中
-            let x = ev.x - this.containerRect.left;
-            let y = ev.y - this.containerRect.top;
-            vline.lineTo({x, y});
+        // 显示元素边界
+        for (let i = 0; i < this.components.length; i++) {
+          const cmp = this.components[i];
+          const preShowBorder = cmp.showBorder;
+          cmp.showBorder = cmp.isPointInBoundary(this.getMouseOffset(ev));
+          if(cmp.mouseHoverShape != undefined){
+            if(!preShowBorder && cmp.showBorder){
+              // mouse-enter
+              this.setMouseShape(cmp.mouseHoverShape);
+            }
+            else if(preShowBorder && !cmp.showBorder){
+              // mouseLeave
+              this.setMouseShape("");
+            }
+          }
+        }
+
+        if(this.drawLineMode){
+          // 画线模式
+          const vline = this.line;
+          if(vline.isSourceSet()){
+              vline.lineTo(this.getMouseOffset(ev));
+          }
+        }
+
+        // 拖拉缩放....
+        const { activeCom } = this.cur;
+        if(activeCom && mouse){
+          const ox = ev.x - mouse.orgX;
+          const oy = ev.y - mouse.orgY;
+          if(!(ox >= 10 || oy >= 10 || ox <= -10 || oy <= -10)) return;
+
+          mouse.dragging = true;
+
+          if(activeCom.draggingBegin && mouse.draggingCount++ == 1){
+              activeCom.draggingBegin();
+          }
+
+          if(activeCom.draggingHandler){
+            activeCom.draggingHandler(this.cur.activeComRect, { ox, oy })
+          }
         }
       },
 
       // 鼠标弹起
       mouseUp: function(ev) {
-        if(ev.button == 2){
-            // 右键, 取消画线
-            const vline = this.$refs.vline;
+        if(this.drawLineMode && ev.button == 2){
+            // 取消画线
+            const vline = this.line;
             vline.reset();
         }
+
+        if(mouse.dragging){
+            // 拖拉缩放....结束
+            const { activeCom } = this.cur;
+            if(activeCom.draggingEnd){
+              activeCom.draggingEnd();
+            }
+        }
+
+        mouse = {};
       },
 
       // 人为改变模板
       tplChange: function(val){
         this.components = [];
         this.tpl = val;
-        this.$refs.vrt.refresh();
+        this.container.refresh();
         this.initComponentsDesignProps();
       },
 
@@ -288,11 +355,28 @@ export default {
       },
 
       // 获取鼠标偏移量
-      getMouseOffset(ev){
-        const x = ev.x - this.containerRect.left;
-        const y  = ev.y - this.containerRect.top;
+      getMouseOffset(ev, offset){
+        let x = ev.x - this.containerRect.left;
+        let y  = ev.y - this.containerRect.top;
+        if(offset){
+          x += offset.x;
+          y += offset.y;
+        }
         return { x, y };
+      },
+
+      // 设置鼠标样式
+      setMouseShape: function(shape){
+        this.$el.style.cursor = shape;
       }
+  },
+  watch: {
+    drawLineMode: function(val){
+      for (let i = 0; i < this.components.length; i++) {
+        const com = this.components[i];
+        com.connectMode = this.drawLineMode;
+      }
+    }
   },
   mounted: function(params) {
     // 禁止右键菜单
@@ -303,16 +387,21 @@ export default {
 
     // 容器位置
     this.$nextTick(()=>{
-      this.containerRect = this.$refs.vrt.$el.getBoundingClientRect();
+      this.line = this.$refs.vline;
+      this.container = this.$refs.vrt;
+      this.containerRect = this.container.$el.getBoundingClientRect();
     });
-  },
-  watch: {
-    drawLineMode: function(val){
-      for (let i = 0; i < this.components.length; i++) {
-        const cmp = this.components[i];
-        cmp.connectMode = this.drawLineMode;
-      }
-    }
+
+    // 定时刷新容器的位置
+    let scrollTimerId = 0;
+    document.addEventListener("scroll", ()=>{
+      if(scrollTimerId) clearTimeout(scrollTimerId);
+      scrollTimerId = setTimeout(() => {
+        console.log('ssss')
+        this.containerRect = this.container.$el.getBoundingClientRect();
+        scrollTimerId = 0;
+      }, 1000);
+    }, true)
   }
 };
 </script>
@@ -330,5 +419,11 @@ export default {
     .el-link {
       margin-right: 5px;
     }
+  }
+
+  .el-main{
+      &:focus{
+          outline: none;
+      }
   }
 </style>

@@ -2,8 +2,7 @@ import groupBy from "lodash/groupBy";
 
 export default {
     inject: [
-        'onComponentCreated', 
-        'onComponentActived',
+        'onComponentCreated',
         'onComponentDeleted'
     ],
     data: function(){
@@ -13,9 +12,12 @@ export default {
             y: 0,
             w: 0,
             h: 0,
-            draggingHanlder: null,
-            showBorderInner: false,
-            isActive: false,
+            draggingBegin: null,
+            draggingHandler: null,
+            draggingEnd: null,
+            mouseHoverShape: null,
+            active: false,
+            showBorder: false,
             cache: {},
         }
     },
@@ -87,13 +89,6 @@ export default {
            }
         },
 
-        mouseEnter: function(){
-            this.showBorderInner = true;
-        },
-        mouseLeave: function(){
-            this.showBorderInner = false 
-        },
-
         delSelf: function(){
             this.onComponentDeleted(this);
             this.$emit("Destory");
@@ -103,9 +98,6 @@ export default {
     },
 
     computed: {
-        isShowBorder: function(){
-            return this.showBorderInner || this.isActive;
-        },
         exportTpl: function(){
             let tpl = (ctx, childTpl) => {
                 if(!ctx) return ;
@@ -131,19 +123,13 @@ export default {
             let thisTpl = tpl(this, childTpl);
 
             return thisTpl;
-        }
-    },
-
-    watch: {
-        isActive: function(val){
-            this.onComponentActived(this, val);
+        },
+        isShowBorder: function(){
+            return this.active || this.showBorder;
         }
     },
 
     mounted: function() {
-        this.$parent.$el.addEventListener("mousemove", this.docMouseMove);
-        this.$parent.$el.addEventListener("mouseup", this.docMouseUp);
-
         this.onComponentCreated(this);
     },
 }

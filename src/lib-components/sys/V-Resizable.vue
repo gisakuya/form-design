@@ -1,37 +1,32 @@
 <template>
-  <div class="warpper" :style="selfStyle"
-    @mousedown.left.stop="mouseDown($event, moveSelf)"
-    @mouseenter="mouseEnter"
-    @mouseleave="mouseLeave"
-    @keyup.delete="delSelf"
-    tabindex="1"
-  >
+  <div class="warpper" :style="selfStyle">
       <slot></slot>
-      <div v-show="isShowBorder" class="layer"></div>
+      <!-- 遮罩 -->
+      <div v-show="isShowBorder" class="layer" @mousedown.left.self="mouseDown($event, moveSelf)"></div>
       <!-- 左上角 -->
       <div class="ctl-dot tl" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftUp, 'tl')"></div>
+            @mousedown.left="dotMouseDown($event, dotMoveLeftUp, 'tl')"></div>
       <!-- 右上角 -->
       <div class="ctl-dot tr" :class="dotCls" v-show="isShowBorder" 
-            @mousedown.left.stop="dotMouseDown($event, dotMoveRightUp, 'tr')"></div>
+            @mousedown.left="dotMouseDown($event, dotMoveRightUp, 'tr')"></div>
       <!-- 左下角 -->
       <div class="ctl-dot lb" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveLeftDown, 'lb')"></div>
+            @mousedown.left="dotMouseDown($event, dotMoveLeftDown, 'lb')"></div>
       <!-- 右下角 -->
       <div class="ctl-dot rb" :class="dotCls" v-show="isShowBorder" 
-            @mousedown.left.stop="dotMouseDown($event, dotMoveRightDown, 'rb')"></div>
+            @mousedown.left="dotMouseDown($event, dotMoveRightDown, 'rb')"></div>
       <!-- 上中 -->
       <div class="ctl-dot tc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveUp, 'tc')"></div>
+            @mousedown.left="dotMouseDown($event, dotMoveUp, 'tc')"></div>
       <!-- 下中 -->
       <div class="ctl-dot bc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveDown, 'bc')"></div>
+            @mousedown.left="dotMouseDown($event, dotMoveDown, 'bc')"></div>
       <!-- 左中 -->
       <div class="ctl-dot lc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveLeft, 'lc')"></div>
+            @mousedown.left="dotMouseDown($event, dotMoveLeft, 'lc')"></div>
       <!-- 右中 -->
       <div class="ctl-dot rc" :class="dotCls" v-show="isShowBorder"
-            @mousedown.left.stop="dotMouseDown($event, dotMoveRight, 'rc')"></div>
+            @mousedown.left="dotMouseDown($event, dotMoveRight, 'rc')"></div>
   </div>
 </template>
 
@@ -39,33 +34,16 @@
 import { QuZheng } from "./utility"
 import CommonMixin from "./componentMixin"
 
-var mouse = {
-    x: 0,
-    y: 0,
-    data: null,
-    setPos: function(pos){
-        this.x = pos.x;
-        this.y = pos.y;
-    },
-    setData: function(data){
-        this.data = data;
-    },
-    isOffsetGreaterThan(ev, offset){
-        const ox = ev.x - this.x;
-        const oy = ev.y - this.y;
-        return ox >= offset || ox <= offset || oy >= offset || oy <= offset;
-    }
-}
-
 export default {
     inject: [
         'isComponentNameVaild',
         'createNewComponentName',
-        'onComponentDotClick'
+        'setMouseShape'
     ],
     data: function() {
         return {
-            connectMode: false
+            connectMode: false,
+            draggingDot: null
         };
     },
     designProps: [
@@ -137,107 +115,101 @@ export default {
     ],
     methods: {
         // 供外部使用
-        setPos: function(pos){
-            this.x = QuZheng(pos.x);
-            this.y = QuZheng(pos.y);
-        },
         getDotPos: function(dot){
+            const l = this.$el.offsetLeft;
+            const t = this.$el.offsetTop;
             const w = this.$el.offsetWidth;
             const h = this.$el.offsetHeight;
             if(dot == "tc"){
                 // 上中
-                return { x: this.x + w/2, y: this.y };
+                return { x: l + w/2, y: t };
             }
             else if(dot == "bc"){
                 // 下中
-                return { x: this.x + w/2, y: this.y + h };
+                return { x: l + w/2, y: t + h };
             }
             else if(dot == "lc"){
                 // 左中
-                return { x: this.x, y: this.y + h/2 };
+                return { x: l, y: t + h/2 };
             }
             else if(dot == "rc"){
                 // 右中
-                return { x: this.x + w, y: this.y + h/2 };
+                return { x: l + w, y: t + h/2 };
             }
             else if(dot == "tl"){
                 // 左上角（左中+上中）
-                return { x: this.x, y: this.y };
+                return { x: l, y: t };
             }
             else if(dot == "tr"){
                 // 右上角(右中+上中)
-                return { x: this.x + w, y: this.y };
+                return { x: l + w, y: t };
             }
             else if(dot == "lb"){
                 // 左下角(左中+下中)
-                return { x: this.x, y: this.y + h };
+                return { x: l, y: t + h };
             }
             else if(dot == "rb"){
                 // 右下角(右中+下中)
-                return { x: this.x + w, y: this.y + h };
+                return { x: l + w, y: t + h };
             }
         },
         getRect: function(){
+            const l = this.$el.offsetLeft;
+            const t = this.$el.offsetTop;
             const w = this.$el.offsetWidth;
             const h = this.$el.offsetHeight;
-            return { l: this.x, t: this.y, w: w, h: h };
+            return { l, t, w, h };
         },
 
         // Dot
         dotMouseDown: function(ev, handler, dot){
             if(this.connectMode){
-                 this.onComponentDotClick(`${this.name}.${dot}`, ev);
+                 this.draggingDot = `${this.name}.${dot}`;
+                 this.draggingHandler = null;
                  return;
             }
 
-            // 记录鼠标初始值
-            mouse.setData({ orgW: this.w, orgH: this.h, orgX: this.x, orgY: this.y, x: ev.x, y: ev.y });
+            const cursor = getComputedStyle(ev.currentTarget).cursor;
+            this.draggingBegin = () => {
+                this.setMouseShape(cursor);
+            };
+            this.draggingEnd = () => {
+                this.setMouseShape("");
+            };
             this.draggingHandler = handler;
-            this.isActive = true;
-            document.body.style.cursor = getComputedStyle(ev.currentTarget).cursor;
         },
 
         // Self
         mouseDown: function(ev, handler){
-            // 记录鼠标初始值
-            mouse.setData({ offsetX: ev.x - this.x, offsetY: ev.y - this.y });
-            this.draggingHandler = handler;
-            this.isActive = true;
-        },
-
-        // Document
-        docMouseMove: function(ev){
-            if(!this.draggingHandler) return;
-            if(!mouse.isOffsetGreaterThan(ev, 10)) return;
-
-            this.draggingHandler(ev.x, ev.y);
-            mouse.setPos(ev);
-
-            this.emitDotPosChange();
-        },
-        docMouseUp: function(){
-            if(!this.draggingHandler){
-                this.isActive = false;
+            if(this.connectMode){
+                this.draggingDot = null;
             }
 
-            this.draggingHandler = null;
-            document.body.style.cursor = "";
+            this.draggingHandler = handler;
         },
 
         // 放大缩小事件
-        dotMoveUp: function(x, y){
-            this.y = QuZheng(mouse.data.orgY + (y - mouse.data.y)); // y + oy
-            this.h = (mouse.data.orgY + mouse.data.orgH) - this.y;  // b - y
+        dotMoveUp: function({ orgY, orgH }, { oy }){
+            this.y = QuZheng(orgY + oy); // y + oy
+            this.h = (orgY + orgH) - this.y;  // b - y
+
+            this.emitDotPosChange();
         },
-        dotMoveDown: function(x, y){
-            this.h = QuZheng(mouse.data.orgH + y - mouse.data.y);   // h + oy
+        dotMoveDown: function({ orgH }, { oy }){
+            this.h = QuZheng(orgH + oy);   // h + oy
+
+            this.emitDotPosChange();
         },
-        dotMoveLeft: function(x, y){
-            this.x = QuZheng(mouse.data.orgX + x - mouse.data.x);   // x + ox
-            this.w = (mouse.data.orgX + mouse.data.orgW) - this.x;  // r - x;
+        dotMoveLeft: function({ orgX, orgW }, { ox }){
+            this.x = QuZheng(orgX + ox);   // x + ox
+            this.w = (orgX + orgW) - this.x;  // r - x;
+
+            this.emitDotPosChange();
         },
-        dotMoveRight: function(x, y){
-            this.w = QuZheng(mouse.data.orgW + x - mouse.data.x);   // w + ox
+        dotMoveRight: function({ orgW }, { ox }){
+            this.w = QuZheng(orgW + ox);   // w + ox
+
+            this.emitDotPosChange();
         },
         dotMoveLeftUp: function(x, y){
             this.dotMoveLeft(x, y);
@@ -255,23 +227,30 @@ export default {
             this.dotMoveRight(x, y);
             this.dotMoveDown(x, y);
         },
-        moveSelf: function(x, y){
-            this.x = QuZheng(x - mouse.data.offsetX);
-            this.y = QuZheng(y - mouse.data.offsetY);
-        },
+        moveSelf: function({ orgX,  orgY }, { ox, oy }){
+            this.x = QuZheng(orgX + ox);
+            this.y = QuZheng(orgY + oy);
 
-        // 发送事件
+            this.emitDotPosChange();
+        },
         emitDotPosChange: function(){
             this.$nextTick(()=>{
                 this.$emit("DotPosChanged");
             })
+        },
+
+        // 是否在边界内
+        isPointInBoundary({ x, y }){
+            const l = this.$el.offsetLeft;
+            const t = this.$el.offsetTop;
+            const w = this.$el.offsetWidth;
+            const h = this.$el.offsetHeight;
+
+            return l <= x && x <= l + w &&
+                    t <= y && y <= t + h;
         }
     },
     computed: {
-        // 是否显示border
-        isShowBorder: function(){
-            return this.connectMode || this.showBorderInner || this.isActive;
-        },
         // dot样式
         dotCls: function(){
             return {
@@ -288,6 +267,9 @@ export default {
                 borderColor: this.isShowBorder ? '#9ed0fa' : 'transparent',
             };
         },
+        isShowBorder: function(){
+            return this.connectMode || this.active || this.showBorder;
+        }
     },
     mixins: [ CommonMixin ]
 }

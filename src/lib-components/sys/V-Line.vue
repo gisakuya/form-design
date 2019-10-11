@@ -1,9 +1,6 @@
 <template>
   <canvas 
     :style="selfStyle" :width="w" :height="h" 
-    @mousedown.left.stop="mouseDown($event);"
-    @keyup.delete="delSelf"
-    tabindex="1"
     ></canvas>
 </template>
 
@@ -11,24 +8,6 @@
 import { GetPath, GetPathRect, IsPointInPath } from "./lineUtility"
 import { QuZheng } from "./utility"
 import CommonMixin from "./componentMixin"
-
-var mouse = {
-    x: 0,
-    y: 0,
-    data: null,
-    setPos: function(pos){
-        this.x = pos.x;
-        this.y = pos.y;
-    },
-    setData: function(data){
-        this.data = data;
-    },
-    isOffsetGreaterThan(ev, offset){
-        const ox = ev.x - this.x;
-        const oy = ev.y - this.y;
-        return ox >= offset || ox <= offset || oy >= offset || oy <= offset;
-    }
-}
 
 export default {
     inject: [
@@ -137,8 +116,8 @@ export default {
 
                 for (let i = 0; i < paths.length; i++) {
                     const path = paths[i];
-                    let x = path.x - this.x;    // 坐标原点转换
-                    let y = path.y - this.y;    // 坐标原点转换
+                    let x = path.x - this.x;    // 转换成画画板的坐标
+                    let y = path.y - this.y;    // 转换成画画板的坐标
                     if(i == 0){
                         ctx.moveTo(x, y);
                     }
@@ -165,64 +144,43 @@ export default {
             this.paint();
         },
 
-        // 内部使用
-        mouseDown: function(ev){
+        // 外部使用
+        exportMouseDown: function(ev){
             const el = this.$el;
             let pointInPath = IsPointInPath(this.getMouseOffset(ev), this.drawPath, 5);
             if(pointInPath){
                 let [pt, npt] = pointInPath.path;
+                let orgX = pt.x;
+                let orgY = pt.y;
                 let lineType = pointInPath.type;
-                let orgPt = Object.assign({}, pt);
-                let orgNPt = Object.assign({}, npt);
-                let oev = { x: ev.x, y: ev.y };
-                this.draggingHandler = ev => {
-                    let ox = ev.x - oev.x;
-                    let oy = ev.y - oev.y;
+                this.draggingHandler = (_, { ox, oy }) => {
                     if(lineType == "VL"){
-                        pt.x = QuZheng(orgPt.x + ox);
+                        pt.x = QuZheng(orgX + ox);
                         npt.x =  pt.x;
                     }
                     else if(lineType == "HL"){
-                        pt.y = QuZheng(orgPt.y + oy);
-                        npt.y = pt.y
+                        pt.y = QuZheng(orgY + oy);
+                        npt.y = pt.y;
                     }
+                    this.paint();
+                }
+                this.draggingBegin = ()=>{
+                    this.isCustDrawPath = true;
                 };
-                
-                this.isActive = true;
             }
         },
 
-        docMouseMove: function(ev){
-            if(this.draggingHandler)
-            {
-                this.draggingHandler(ev);
-                this.isCustDrawPath =  true;
+        // 是否在边界内
+        isPointInBoundary(point){
+            let pointInPath = IsPointInPath(point, this.drawPath, 5);
+            if(pointInPath){
+                this.mouseHoverShape = pointInPath.type == "VL" ? "e-resize" : pointInPath.type == "HL" ? "n-resize" : "";
+                return true;
             }
-            else
-            {
-                const el = this.$el;
-                let pointInPath = IsPointInPath(this.getMouseOffset(ev), this.drawPath, 5);
-                if(pointInPath){
-                    // 相当于mouse-enter
-                    el.style.cursor = pointInPath.type == "VL" ? "e-resize" : pointInPath.type == "HL" ? "n-resize" : "";
-                    this.mouseEnter();
-                }
-                else{
-                    // 相当于mouse-leave
-                    el.style.cursor = "";
-                    this.mouseLeave();
-                }
+            else{
+                this.mouseHoverShape = "";
+                return false;
             }
-            this.paint();
-        },
-
-        docMouseUp: function(ev){
-            if(!this.draggingHandler){
-                this.isActive = false;
-                this.paint();
-            }
-
-            this.draggingHandler = null;
         },
 
         // 取消订阅
@@ -268,6 +226,12 @@ export default {
             if(oldVal) this.unSubscribeEvent(oldVal.el);
             if(val) this.subscribeEvent(val.el);
         },
+        showBorder: function(){
+            this.paint();
+        },
+        active: function(){
+            this.paint();
+        }
     },
     destroyed: function(){
         if(this.source) this.unSubscribeEvent(this.source.el);
