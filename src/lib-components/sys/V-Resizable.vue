@@ -1,8 +1,8 @@
 <template>
-  <div class="warpper" :style="selfStyle">
+  <div class="warpper" :style="selfStyle" @mousedown.left.self="mouseDown($event, moveSelf)">
       <slot></slot>
       <!-- 遮罩 -->
-      <div v-show="isShowBorder" class="layer" @mousedown.left.self="mouseDown($event, moveSelf)"></div>
+      <!-- <div v-show="isShowBorder" class="layer" @mousedown.left.self="mouseDown($event, moveSelf)"></div> -->
       <!-- 左上角 -->
       <div class="ctl-dot tl" :class="dotCls" v-show="isShowBorder"
             @mousedown.left="dotMouseDown($event, dotMoveLeftUp, 'tl')"></div>
@@ -36,8 +36,7 @@ import CommonMixin from "./componentMixin"
 
 export default {
     inject: [
-        'isComponentNameVaild',
-        'createNewComponentName',
+        'isComponentIdVaild',
         'setMouseShape'
     ],
     data: function() {
@@ -48,70 +47,65 @@ export default {
     },
     designProps: [
         {
-            title: '一般属性',
-            props: [
-                {
-                    title: '名称',
-                    name: 'name',
-                    get: function(){
-                        return this.name;
-                    },
-                    set: function(val){
-                        if(!val) return;
-                        if(!this.isComponentNameVaild(val)){
-                            alert("该名字已被占用!");
-                        }
-                        else{
-                            this.name = val;
-                        }
-                    },
-                    init: function(val){
-                        this.name = val || this.createNewComponentName(this);
-                    }
-                },
-                {
-                    title: '位置',
-                    name: 'pos',
-                    tooltip: '格式：x,y',
-                    get: function() {
-                        return `${this.x},${this.y}`;
-                    },
-                    set: function(val, i){
-                        if(!val) return;
-                        let tmp = val.split(',');
-                        this.x = +tmp[0];
-                        this.y = +tmp[1];
-                        if(!i) this.emitDotPosChange();
-                    }
-                },
-                {
-                    title: '大小',
-                    name: 'size',
-                    tooltip: '格式：w,h',
-                    get: function() {
-                        return `${this.w},${this.h}`;
-                    },
-                    set: function(val, i){
-                        if(!val) return;
-                        let tmp = val.split(',');
-                        this.w = +tmp[0];
-                        this.h = +tmp[1];
-                        if(!i) this.emitDotPosChange();
-                    },
-                    init: function(val){
-                        if(val){
-                            let tmp = val.split(',');
-                            this.w = +tmp[0];
-                            this.h = +tmp[1];
-                        }
-                        else{
-                            this.w = this.$el.offsetWidth;
-                            this.h = this.$el.offsetHeight;
-                        }
-                    }
-                },
-            ]
-        }
+            title: '唯一标志',
+            name: 'id',
+            get: function(){
+                return this.id;
+            },
+            set: function(val){
+                if(!val) return;
+                if(!this.isComponentIdVaild(val)){
+                    alert("该标志已被占用!");
+                }
+                else{
+                    this.id = val;
+                }
+            },
+            init: function(val){
+                this.id = val;
+            }
+        },
+        {
+            title: '位置',
+            name: 'pos',
+            tooltip: '格式：x,y',
+            get: function() {
+                return `${this.x},${this.y}`;
+            },
+            set: function(val, i){
+                if(!val) return;
+                let tmp = val.split(',');
+                this.x = +tmp[0];
+                this.y = +tmp[1];
+                if(!i) this.emitDotPosChange();
+            }
+        },
+        {
+            title: '大小',
+            name: 'size',
+            tooltip: '格式：w,h',
+            get: function() {
+                return `${this.w},${this.h}`;
+            },
+            set: function(val, i){
+                if(!val) return;
+                let tmp = val.split(',');
+                this.w = +tmp[0];
+                this.h = +tmp[1];
+                if(!i) this.emitDotPosChange();
+            },
+            init: function(val){
+                if(val){
+                    let tmp = val.split(',');
+                    this.w = +tmp[0];
+                    this.h = +tmp[1];
+                }
+                else{
+                    this.w = this.$el.offsetWidth;
+                    this.h = this.$el.offsetHeight;
+                }
+            }
+        },
     ],
     methods: {
         // 供外部使用
@@ -164,7 +158,7 @@ export default {
         // Dot
         dotMouseDown: function(ev, handler, dot){
             if(this.connectMode){
-                 this.draggingDot = `${this.name}.${dot}`;
+                 this.draggingDot = `${this.id}.${dot}`;
                  this.draggingHandler = null;
                  return;
             }
@@ -185,6 +179,8 @@ export default {
                 this.draggingDot = null;
             }
 
+            this.draggingBegin = null;
+            this.draggingEnd = null;
             this.draggingHandler = handler;
         },
 

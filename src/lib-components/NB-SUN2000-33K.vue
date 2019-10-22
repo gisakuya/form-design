@@ -1,10 +1,8 @@
 <template>
-  <img :src="trueUrl"  class="myimg"/>
+    <img :src="trueUrl"  class="myimg"/>
 </template>
 
 <script>
-// http://img0.imgtn.bdimg.com/it/u=3357786243,3135716437&fm=26&gp=0.jpg
-// http://img3.imgtn.bdimg.com/it/u=222247294,2919493301&fm=26&gp=0.jpg
 export default {
   data: function(){
     return {
@@ -13,13 +11,8 @@ export default {
   },
   designProps:[
     {
-      title: '一般属性',
-      props: [
-        {
-          title: '地址',
-          name: 'url'
-        }
-      ]
+      title: '地址',
+      name: 'url'
     }
   ],
   computed: {

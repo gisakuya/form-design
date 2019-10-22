@@ -11,7 +11,8 @@ import CommonMixin from "./componentMixin"
 
 export default {
     inject: [
-        'getComponentByName',
+        'isComponentIdVaild',
+        'getComponentById',
         'getMouseOffset'
     ],
     data: function(){
@@ -33,66 +34,82 @@ export default {
             color: null,
         };
     },
-    designProps: [{
-        title: '一般属性',
-        props: [
-            { title: '宽度', name: 'width', default: 1 },
-            { title: '颜色', name: 'color', default: 'black' },
-            {
-                title: '连接起点',
-                name: 'source',
-                get: function(){
-                    return this.source ?  `${this.source.el.name}.${this.source.dot}` : '';
-                },
-                set: function(val){
-                    if(!val) return;
-                    let [comName, dotName] = val.split('.');
-                    if(!comName || !dotName) return;
-                    let com = this.getComponentByName(comName);
-                    if(!com) return;
-                    this.source = { el: com, dot: dotName };
+    designProps: [
+        {
+            title: '唯一标志',
+            name: 'id',
+            get: function(){
+                return this.id;
+            },
+            set: function(val){
+                if(!val) return;
+                if(!this.isComponentIdVaild(val)){
+                    alert("该标志已被占用!");
+                }
+                else{
+                    this.id = val;
                 }
             },
-            {
-                title: '连接终点',
-                name: 'dest',
-                get: function(){
-                    return this.dest ?  `${this.dest.el.name}.${this.dest.dot}` : '';
-                },
-                set: function(val){
-                    if(!val) return;
-                    let [comName, dotName] = val.split('.');
-                    if(!comName || !dotName) return;
-                    let com = this.getComponentByName(comName);
-                    if(!com) return;
-                    this.dest = { el: com, dot: dotName };
-                }
-            },
-            {
-                title: '路径',
-                name: 'path',
-                get: function(){
-                    if(!this.isCustDrawPath) return;
-                    return this.drawPath ?
-                            this.drawPath.map(pt=>`${pt.x},${pt.y}`).join('|') :
-                            '';
-                },
-                set: function(val, i){
-                    if(!val) return;
-                    let points = val.split('|');
-                    let arr = [];
-                    points.forEach(pt => {
-                        const [ x, y ] = pt.split(',');
-                        arr.push({ x: +x, y: +y });
-                    });
-                    this.drawPath = arr;
-                    this.isCustDrawPath = true;
-                    if(!i) this.paint();
-                },
-                readonly: true
+            init: function(val){
+                this.id = val;
             }
-        ]
-    }],
+        },
+        { title: '宽度', name: 'width', default: 1 },
+        { title: '颜色', name: 'color', default: 'black' },
+        {
+            title: '连接起点',
+            name: 'source',
+            get: function(){
+                return this.source ?  `${this.source.el.id}.${this.source.dot}` : '';
+            },
+            set: function(val){
+                if(!val) return;
+                let [comName, dotName] = val.split('.');
+                if(!comName || !dotName) return;
+                let com = this.getComponentById(comName);
+                if(!com) return;
+                this.source = { el: com, dot: dotName };
+            }
+        },
+        {
+            title: '连接终点',
+            name: 'dest',
+            get: function(){
+                return this.dest ?  `${this.dest.el.id}.${this.dest.dot}` : '';
+            },
+            set: function(val){
+                if(!val) return;
+                let [comName, dotName] = val.split('.');
+                if(!comName || !dotName) return;
+                let com = this.getComponentById(comName);
+                if(!com) return;
+                this.dest = { el: com, dot: dotName };
+            }
+        },
+        {
+            title: '路径',
+            name: 'path',
+            get: function(){
+                if(!this.isCustDrawPath) return;
+                return this.drawPath ?
+                        this.drawPath.map(pt=>`${pt.x},${pt.y}`).join('|') :
+                        '';
+            },
+            set: function(val, i){
+                if(!val) return;
+                let points = val.split('|');
+                let arr = [];
+                points.forEach(pt => {
+                    const [ x, y ] = pt.split(',');
+                    arr.push({ x: +x, y: +y });
+                });
+                this.drawPath = arr;
+                this.isCustDrawPath = true;
+                if(!i) this.paint();
+            },
+            readonly: true
+        }
+    ],
     methods: {
         // 内部使用
         paint: function(){
@@ -146,7 +163,6 @@ export default {
 
         // 外部使用
         exportMouseDown: function(ev){
-            const el = this.$el;
             let pointInPath = IsPointInPath(this.getMouseOffset(ev), this.drawPath, 5);
             if(pointInPath){
                 let [pt, npt] = pointInPath.path;

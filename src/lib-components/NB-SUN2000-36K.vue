@@ -13,22 +13,17 @@ export default {
     }
   },
   designProps: [
-    {
-      title: '一般属性',
-      props: [
-        {
-              title: '36K属性',
-              name: 'cust-attr',
-              get: function() {
-                  return this.a;
-              },
-              set: function(val){
-                  this.a = val;
-              }
-        }
-      ]
-    }
-  ]
+      {
+            title: '36K属性',
+            name: 'cust-attr',
+            get: function() {
+                return this.a;
+            },
+            set: function(val){
+                this.a = val;
+            }
+      }
+    ]
 }
 </script>
 
