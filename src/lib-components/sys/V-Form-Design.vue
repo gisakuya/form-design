@@ -17,6 +17,8 @@
 </template>
 
 <script>
+import { ExecDelay } from "./utility";
+
 let mouse = {};
 
 export default {
@@ -37,12 +39,9 @@ export default {
   },
   data() {
     return {
-      line: null,
-      containerEl: null,
-      components: [],
       cur: {},
-      timerId: 0,
-      dynamicProps: {},
+      components: [],
+      dynamicProps: {}
     }
   },
   props: {
@@ -74,24 +73,26 @@ export default {
   methods: {
       // 组件创建时
       onComponentCreated: function(com){
-        com.connectMode = this.drawLineMode;
         this.components.push(com);
+        // const comTag = com.$options._componentTag;
+        // if(comTag == "v-row" || comTag == "v-col" || comTag == "v-line"){
+        //   this.components.push(com);
+        // }else{
+        //   this.components.splice(0, 0, com);
+        // }
       },
       // 组件删除时
       onComponentDeleted: function(com){
         const index = this.components.indexOf(com);
         if(index != -1){
           this.components.splice(index, 1);
-
           if(this.cur && this.cur.delManual){
             // 手动删除的
-            if(this.timerId) clearTimeout(this.timerId);
-            this.timerId = setTimeout(() => {
+            ExecDelay(50, ()=>{
               this.cur = {};
-              this.timerId = 0;
               this.emitTplChanged();
               this.emitSelChanged();
-            }, 50);
+            });
           }
         }
       },
@@ -156,7 +157,7 @@ export default {
         const { activeCom } = this.cur;
         if(this.drawLineMode && activeCom && activeCom.draggingDot){
           // 画线模式
-          const vline = this.line;
+          const vline = this.$refs.vline;
           if(vline.isSourceSet()){
             vline.saveDest(activeCom.draggingDot);
 
@@ -165,7 +166,6 @@ export default {
             vline.reset();
           }
           else{
-            this.containerEl.appendChild(this.line.$el);
             vline.moveTo(mousePos);
             vline.saveSource(activeCom.draggingDot);
           }
@@ -196,7 +196,7 @@ export default {
 
         if(this.drawLineMode){
           // 画线模式
-          const vline = this.line;
+          const vline = this.$refs.vline;
           if(vline.isSourceSet()){
               vline.lineTo(mousePos);
           }
@@ -225,7 +225,7 @@ export default {
       mouseUp: function(ev) {
         if(this.drawLineMode && ev.button == 2){
             // 取消画线
-            const vline = this.line;
+            const vline = this.$refs.vline;
             vline.reset();
         }
 
@@ -274,7 +274,7 @@ export default {
 
       // 获取鼠标偏移量
       getMouseOffset(ev, offset){
-        const containerRect = this.containerEl.getBoundingClientRect();
+        const containerRect = this.$el.getBoundingClientRect();
         let x = ev.x - containerRect.left;
         let y  = ev.y - containerRect.top;
         if(offset){
@@ -314,6 +314,13 @@ export default {
 
       // 创建VResiable
       createVResiable: function({ x, y }, childComponent){
+        if(childComponent == "v-row" || childComponent == "v-col"){
+          // 容器类
+          return {
+            tag: childComponent,
+            id: this.createNewComponentId(childComponent)
+          }
+        }
         return { 
           tag: "v-resizable", 
           id: this.createNewComponentId('v-resizable'),
@@ -340,10 +347,6 @@ export default {
       }
   },
   mounted: function() {
-    // 初始化变量
-    this.line = this.$refs.vline;
-    this.containerEl = this.$el;
-
     // 初始化事件
     this.emitSelChanged();
 

@@ -1,12 +1,12 @@
 <template>
-  <canvas 
+  <canvas class="v-line"
     :style="selfStyle" :width="w" :height="h" 
     ></canvas>
 </template>
 
 <script>
 import { GetPath, GetPathRect, IsPointInPath } from "./lineUtility"
-import { QuZheng } from "./utility"
+import { QuZheng, GetStyleValue } from "./utility"
 import CommonMixin from "./componentMixin"
 
 export default {
@@ -224,8 +224,8 @@ export default {
         // 本身样式
         selfStyle: function(){
             return { 
-                left: this.x + 'px', 
-                top: this.y + 'px',
+                left: GetStyleValue(this.x), 
+                top: GetStyleValue(this.y),
             };
         }
     },
@@ -257,8 +257,8 @@ export default {
 }
 </script>
 
-<style lang="less" scoped>
-    canvas {
+<style lang="less">
+    .v-line {
         display: inline-block;
         position: absolute;
         // background: yellow;

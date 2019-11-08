@@ -26,22 +26,22 @@ function DealComDef(ctx, com){
         }
     }
 
-    const attrs = {
+    const domProps = {
         _designProps: { id: com.id, ...(com.designProps || {}) },
         _bindProps: com.bindProps || {},
         _bindAttrs: com.bindAttrs || {},
     };
 
     const props = {};
-    for (const key in attrs._bindProps) {
-        const valueExp = attrs._bindProps[key];
+    for (const key in domProps._bindProps) {
+        const valueExp = domProps._bindProps[key];
         const { realValue } = GetRealValue(ctx, valueExp);
         props[key] = realValue;
     }
 
     const handlers = {};
-    for (const key in attrs._bindAttrs) {
-        const valueExp = attrs._bindAttrs[key];
+    for (const key in domProps._bindAttrs) {
+        const valueExp = domProps._bindAttrs[key];
         const { realValue, matchName } = GetRealValue(ctx, valueExp);
         if(key == "v-model" && matchName){
             const { prop = "value", event = "input" } = GetTagModel(com.tag);
@@ -58,7 +58,7 @@ function DealComDef(ctx, com){
     return {
         key: com.id,
         tag: com.tag,
-        attrs: attrs,
+        domProps: domProps,
         props: props,
         on: handlers,
         children: children

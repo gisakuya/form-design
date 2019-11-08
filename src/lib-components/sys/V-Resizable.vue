@@ -1,8 +1,8 @@
 <template>
-  <div class="warpper" :style="selfStyle" @mousedown.left.self="mouseDown($event, moveSelf)">
+  <div class="v-resiable" :style="selfStyle">
       <slot></slot>
       <!-- 遮罩 -->
-      <!-- <div v-show="isShowBorder" class="layer" @mousedown.left.self="mouseDown($event, moveSelf)"></div> -->
+      <div v-show="isShowBorder" class="layer" @mousedown.left.self="mouseDown($event, moveSelf)"></div>
       <!-- 左上角 -->
       <div class="ctl-dot tl" :class="dotCls" v-show="isShowBorder"
             @mousedown.left="dotMouseDown($event, dotMoveLeftUp, 'tl')"></div>
@@ -31,7 +31,7 @@
 </template>
 
 <script>
-import { QuZheng } from "./utility"
+import { QuZheng, GetStyleValue } from "./utility"
 import CommonMixin from "./componentMixin"
 
 export default {
@@ -90,15 +90,15 @@ export default {
             set: function(val, i){
                 if(!val) return;
                 let tmp = val.split(',');
-                this.w = +tmp[0];
-                this.h = +tmp[1];
+                this.w = tmp[0].trim();
+                this.h = tmp[1].trim();
                 if(!i) this.emitDotPosChange();
             },
             init: function(val){
                 if(val){
                     let tmp = val.split(',');
-                    this.w = +tmp[0];
-                    this.h = +tmp[1];
+                    this.w = tmp[0];
+                    this.h = tmp[1];
                 }
                 else{
                     this.w = this.$el.offsetWidth;
@@ -233,17 +233,6 @@ export default {
             this.$nextTick(()=>{
                 this.$emit("DotPosChanged");
             })
-        },
-
-        // 是否在边界内
-        isPointInBoundary({ x, y }){
-            const l = this.$el.offsetLeft;
-            const t = this.$el.offsetTop;
-            const w = this.$el.offsetWidth;
-            const h = this.$el.offsetHeight;
-
-            return l <= x && x <= l + w &&
-                    t <= y && y <= t + h;
         }
     },
     computed: {
@@ -256,10 +245,10 @@ export default {
         // 本身样式
         selfStyle: function(){
             return { 
-                left: this.x ? this.x + 'px' : null, 
-                top: this.y ? this.y + 'px' : null,
-                width: this.w ? this.w + 'px' : null,
-                height: this.h ? this.h + 'px' : null,
+                left: GetStyleValue(this.x), 
+                top: GetStyleValue(this.y),
+                width: GetStyleValue(this.w),
+                height: GetStyleValue(this.h),
                 borderColor: this.isShowBorder ? '#9ed0fa' : 'transparent',
             };
         },
@@ -271,8 +260,8 @@ export default {
 }
 </script>
 
-<style lang="less" scoped>
-    .warpper {
+<style lang="less">
+    .v-resiable {
         display: inline-block;
         position: absolute;
         padding: 5px;

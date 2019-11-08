@@ -1,6 +1,3 @@
-import groupBy from "lodash/groupBy"
-import sortBy from "lodash/sortBy"
-
 export default {
     inject: [
         'onComponentCreated',
@@ -31,54 +28,56 @@ export default {
             this.onComponentDeleted(this);
         },
 
-        initDesignProps: function(){
-            let arr = [];
-    
-            const helper = ctx => {
-                if(!ctx) return;
-                const designProps = ctx.$options.designProps;
-                if(!designProps) return;
-                for (let i = 0; i < designProps.length; i++) {
-                    const prop = designProps[i];
-                    if(!prop.get){
-                        prop.get = new Function(`return this.$data.${prop.name}`);
-                    }
-                    if(!prop.set){
-                        prop.set = new Function("val", `this.$data.${prop.name}=val`);
-                    }
-                    const newProp = Object.assign({}, prop, { 
-                        ctx: ctx, 
-                        get: () => prop.get.call(ctx),
-                        set: (val, i) => { prop.set.call(ctx, val); if(!i) this.emitTplChanged(); },
-                        init: prop.init ? val => prop.init.call(ctx, val) : null
-                    });
-                    arr.push(newProp);
+        // 初始化设计属性
+        initDesignPropsCore: function(arr, ctx){
+            if(!ctx) return;
+            const designProps = ctx.$options.designProps;
+            if(!designProps) return;
+            for (let i = 0; i < designProps.length; i++) {
+                const prop = designProps[i];
+                if(!prop.get){
+                    prop.get = new Function(`return this.$data.${prop.name}`);
+                }
+                if(!prop.set){
+                    prop.set = new Function("val", `this.$data.${prop.name}=val`);
+                }
+                const newProp = Object.assign({}, prop, { 
+                    ctx: ctx, 
+                    get: () => prop.get.call(ctx),
+                    set: (val, i) => { prop.set.call(ctx, val, i); if(!i) this.emitTplChanged(); },
+                    init: prop.init ? val => prop.init.call(ctx, val) : null
+                });
+                arr.push(newProp);
 
-                    // 初始化值
-                    if(prop.name){
-                        const propVal = ctx.$attrs._designProps[prop.name] || prop.default;
-                        if(newProp.init){
-                            newProp.init(propVal);
-                        }
-                        else if(newProp.set){
-                            newProp.set(propVal, true);
-                        }
+                // 初始化值
+                if(prop.name){
+                    const propVal = ctx.$el._designProps[prop.name] || prop.default;
+                    if(newProp.init){
+                        newProp.init(propVal);
+                    }
+                    else if(newProp.set){
+                        newProp.set(propVal, true);
                     }
                 }
-            };
-    
-            helper(this);
-            helper(this.$children[0]);
-
+            }
+            delete ctx.$el._designProps;
+        },
+        initDesignProps: function(){
+            let arr = [];
+            this.initDesignPropsCore(arr, this);
+            this.initDesignPropsCore(arr, this.$children[0])
             this.designProps = arr;
         },
 
-        initBindProps: function(){
-            const createProp = (ctx, name, value, type, extra) => {
+        // 初始化绑定属性
+        initBindPropsCore: function(arr, ctx){
+            if(!ctx) return;
+
+            const addProp = (ctx, name, value, type, extra)=>{
                 if(!Array.isArray(type)){
                     type = [ type ];
                 }
-
+    
                 let obj = {
                     ctx: ctx,
                     title: name,
@@ -117,56 +116,72 @@ export default {
                         }
                         if(!deal) throw '无法处理';
                     }
-                    this.emitTplChanged();
                 };
                 return Object.assign(obj, extra);
-            };
-
-            let arr = [];
-
-            const helper = ctx => {
-                if(!ctx) return;
-
-                const props = ctx.$options.props;
-                if(props){
-                    for (const key in props) {
-                        const prop = props[key];
-                        const name = key;
-                        const type = prop.type || String;
-                        const defValue = typeof prop.default == "function" ? prop.default.call(ctx) : prop.default;
-                        const value = ctx.$attrs._bindProps[key] || defValue;
-                        arr.push(createProp(ctx, name, value, type, { default: defValue, isProp: true }));
-                    }
-                }
-                            
-                const attrs = ctx.$attrs._bindAttrs;
-                for (const key in attrs) {
-                    const value = attrs[key];
-                    arr.push(createProp(ctx, key, value, String));
-                }
             }
 
-            helper(this);
-            helper(this.$children[0]);
+            const arrPush = prop => {
+                let i = 0;
+                for (; i < arr.length; i++) {
+                    const item = arr[i];
+                    if(prop.title <= item.title){
+                        break;
+                    }
+                }
+                arr.splice(i, 0, prop);
+            }
 
-            const child = this.$children[0];
+            // 处理_bindProps
+            const props = ctx.$options.props;
+            if(props){
+                for (const key in props) {
+                    const prop = props[key];
+                    const name = key;
+                    const type = prop.type || String;
+                    const defValue = typeof prop.default == "function" ? prop.default.call(ctx) : prop.default;
+                    const value = ctx.$el._bindProps[key] || defValue;
+                    arrPush(addProp(ctx, name, value, type, { default: defValue, isProp: true }));
+                }
+                delete ctx.$el._bindProps;
+            }
 
-            // 排序
-            arr = sortBy(arr, ['title']);
-            // 增加添加函数
+            // 处理_bindAttrs
+            const attrs = ctx.$el._bindAttrs;
+            for (const key in attrs) {
+                const value = attrs[key];
+                arr.push(addProp(ctx, key, value, String));
+            }
+            delete ctx.$el._bindAttrs;
+
+            // 添加setProp功能
             arr.setProp = (name, value) => {
                 for (let i = 0; i < arr.length; i++) {
                     const prop = arr[i];
                     if(prop.name == name){
                         prop.set(value);
+                        this.emitTplChanged();
                         return;
                     }
                 }
-                arr.push(createProp(child, name, value, String));
+                arrPush(addProp(ctx, name, value, String));
                 this.emitTplChanged();
             }
-
+        },
+        initBindProps: function(){
+            let arr = [];
+            this.initBindPropsCore(arr, this.$children[0]);
             this.bindProps = arr;
+        },
+
+        // 是否在边界内
+        isPointInBoundary({ x, y }){
+            const l = this.$el.offsetLeft;
+            const t = this.$el.offsetTop;
+            const w = this.$el.offsetWidth;
+            const h = this.$el.offsetHeight;
+
+            return l <= x && x <= l + w &&
+                    t <= y && y <= t + h;
         }
     },
 
@@ -236,11 +251,16 @@ export default {
                 return rtn;
             }
 
-            if(this.$children.length){
-                const child = helper(this.$children[0]);
-                return helper(this, [ child ])
+            const children = this.$children;
+            if(children && children.length){
+                let tmp = [];
+                for (let i = 0; i < children.length; i++) {
+                    tmp.push(helper(children[i]));
+                }
+                return helper(this, tmp);
             }
-            return helper(this)
+
+            return helper(this);
         }
     },
 
@@ -249,11 +269,11 @@ export default {
         this.initBindProps();
         this.onComponentCreated(this);
 
-        setTimeout(() => {
-            if(this.layoutFinished) {
+        if(this.layoutFinished){
+            setTimeout(() => {
                 this.layoutFinished();
-            }
-        }, 100)
+            }, 100)
+        }
     },
     beforeDestroy: function(){
         this.onComponentDeleted(this);

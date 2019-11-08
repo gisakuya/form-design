@@ -464,6 +464,8 @@ export function GetPathRect(path){
 
 // 点是否在路径内(供外部VLine使用)
 export function IsPointInPath(point, path, offset){
+    if(!path || !path.length) return false;
+
     // 根据点生成矩形
     const { x, y } = point;
 

@@ -30,3 +30,19 @@ export function QuZheng(val){
     return Math.round(val/10)*10;
 }
 
+// 获取样式值
+export function GetStyleValue(val){
+    if(!val) return null;
+    if(/^\d+$/.test(val)) return val+"px"; // 默认px
+    return val;
+}
+
+// 延迟执行
+let delayTimer = 0;
+export function ExecDelay(msec, fnt){
+    if(delayTimer) clearTimeout(delayTimer);
+    delayTimer = setTimeout(()=>{
+        fnt();
+        delayTimer = 0;
+    }, msec);
+}

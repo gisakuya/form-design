@@ -96,10 +96,16 @@ export default {
     return {
       menus: [
         { title: '基本控件', icon: 'el-icon-bell', submenus: [
-          // { title: '基础文本框', componentName: 'input'  },
+          { title: '标签', componentName: 'v-label' },
           { title: '文本框', componentName: 'el-input'  },
           { title: '日期选择器', componentName: 'el-date-picker'  },
         ] },
+        {
+          title: '容器', icon: 'el-icon-s-grid', submenus: [
+            { title: '行', componentName: 'v-row' },
+            { title: '列', componentName: 'v-col' },
+          ]
+        },
         { title: '逆变器', icon: 'el-icon-setting', submenus: [ 
             { title: 'SUN2000-33KTL', componentName: 'nb-sun2000-33k' }, 
             { title: 'SUN2000-36KTL', componentName: 'nb-sun2000-36k' }
