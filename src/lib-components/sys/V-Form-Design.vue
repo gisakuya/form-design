@@ -5,8 +5,7 @@
         @mousedown="mouseDown"
         @mousemove="mouseMove"
         @mouseup="mouseUp"
-        @keyup.46="delComponent"
-        tabindex="1">
+        @keyup.46="delCom" tabindex="0">
 
         <p>动态属性：{{dynamicProps}}</p>
         <v-line-simple ref="vline"></v-line-simple>
@@ -17,9 +16,11 @@
 </template>
 
 <script>
-import { ExecDelay } from "./utility";
+import { TimerHeper, TreeLoop, TreeLoopSkip, TreeFindSingle, TreeFindCollect, TreeDelItem, TreeMoveItem } from "./utility";
+import { GetComExportTpl, IsPointInComBoundary, InitComDesignProps, InitComBindProps, GetComTag  } from "./componentUtility";
 
 let mouse = {};
+let timerHelper = new TimerHeper();
 
 export default {
   model: {
@@ -28,13 +29,11 @@ export default {
   },
   provide: function(){
     return {
-        onComponentCreated: this.onComponentCreated,
         onComponentDeleted: this.onComponentDeleted,
         getComponentById: this.getComponentById,
         isComponentIdVaild: this.isComponentIdVaild,
         getMouseOffset: this.getMouseOffset,
-        setMouseShape: this.setMouseShape,
-        emitTplChanged: this.emitTplChanged
+        setMouseShape: this.setMouseShape
     }
   },
   data() {
@@ -55,7 +54,7 @@ export default {
   },
   computed: {
     designProps: function(){
-      return this.cur && this.cur.designProps ? this.cur.designProps : [];
+      return this.cur.designProps;
     },
     bindProps: function(){
       if(this.cur && this.cur.bindProps) return this.cur.bindProps;
@@ -71,37 +70,31 @@ export default {
     }
   },
   methods: {
-      // 组件创建时
-      onComponentCreated: function(com){
-        this.components.push(com);
-        // const comTag = com.$options._componentTag;
-        // if(comTag == "v-row" || comTag == "v-col" || comTag == "v-line"){
-        //   this.components.push(com);
-        // }else{
-        //   this.components.splice(0, 0, com);
-        // }
-      },
       // 组件删除时
       onComponentDeleted: function(com){
-        const index = this.components.indexOf(com);
-        if(index != -1){
-          this.components.splice(index, 1);
-          if(this.cur && this.cur.delManual){
-            // 手动删除的
-            ExecDelay(50, ()=>{
-              this.cur = {};
-              this.emitTplChanged();
-              this.emitSelChanged();
-            });
-          }
+        TreeDelItem(this.components, com);
+        // 手动删除的
+        if(this.cur.delComManual){
+          timerHelper.ExecAfter(0, ()=>{
+            this.cur = {};
+            this.emitTplChanged();
+            this.emitSelChanged();
+          })
         }
       },
 
-      // 删除控件
-      delComponent: function(){
-          if(!this.cur.activeCom) return;
-          this.cur.delManual = true;
-          this.cur.activeCom.delSelf();
+      // 手动删除组件
+      delCom: function(){
+        let activeCom = this.cur.activeCom;
+        if(!activeCom) return;
+        while (!activeCom.delSelf) {
+          activeCom = activeCom.parent;
+        }
+        this.cur = {
+          delComManual: true,
+          activeCom: activeCom
+        };
+        activeCom.delSelf();
       },
 
       // 拖拉组件
@@ -116,7 +109,7 @@ export default {
         let [ componentName, ox, oy ] = data.split(",");
         let { x, y } = this.getMouseOffset(ev, { x: -(ox||0), y: -(oy||0) })
 
-        this.emitTplChanged([ ...this.tpl.components, this.createVResiable({x, y}, componentName) ]);
+        this.emitTplChanged([ ...this.tpl.components, this.createVComponent({x, y}, componentName) ]);
 
         this.cur = {};
       },
@@ -128,31 +121,32 @@ export default {
         }
         
         this.cur = {};
+
+        // 鼠标位置
+        const mousePos = this.getMouseOffset(ev);
         
         // 查找激活组件
-        const mousePos = this.getMouseOffset(ev);
-        for (let i = 0; i < this.components.length; i++) {
-          const com = this.components[i];
-          if(com.isPointInBoundary(mousePos)){
-            if(com.exportMouseDown){
-              com.exportMouseDown(ev);
+        TreeLoop(this.components, com => {
+            if(com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev)){
+              if(com.exportMouseDown){
+                com.exportMouseDown(mousePos);
+              }
+              com.active =  true;
+              this.cur = {
+                activeCom: com,
+                designProps: com.designProps,
+                bindProps: com.bindProps
+              };
+              mouse = {
+                  dragging: false,
+                  draggingCount: 1,
+                  orgX: ev.x,
+                  orgY: ev.y
+              };
+
+              return false; // break;
             }
-            com.active =  true;
-            this.cur = {
-              activeCom: com,
-              activeComRect: { orgX: com.x, orgY: com.y, orgW: com.w, orgH: com.h },
-              designProps: com.designProps,
-              bindProps: com.bindProps
-            };
-            mouse = {
-                dragging: false,
-                draggingCount: 1,
-                orgX: ev.x,
-                orgY: ev.y
-            };
-            break;
-          }
-        }
+        }, true);
 
         const { activeCom } = this.cur;
         if(this.drawLineMode && activeCom && activeCom.draggingDot){
@@ -176,23 +170,26 @@ export default {
 
       // 鼠标移动
       mouseMove: function(ev) {
-        // 显示元素边界
+        // 鼠标位置
         const mousePos = this.getMouseOffset(ev);
-        for (let i = 0; i < this.components.length; i++) {
-          const cmp = this.components[i];
-          const preShowBorder = cmp.showBorder;
-          cmp.showBorder = cmp.isPointInBoundary(mousePos);
-          if(cmp.mouseHoverShape != undefined){
-            if(!preShowBorder && cmp.showBorder){
-              // mouse-enter
-              this.setMouseShape(cmp.mouseHoverShape);
-            }
-            else if(preShowBorder && !cmp.showBorder){
-              // mouseLeave
-              this.setMouseShape("");
+
+        // 显示元素边界
+        TreeLoop(this.components, com => {
+          if(com.hasOwnProperty("showBorder")){
+            const preShowBorder = com.showBorder;
+            com.showBorder = com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev);
+            if(com.mouseHoverShape != undefined){
+              if(!preShowBorder && com.showBorder){
+                // mouse-enter
+                this.setMouseShape(com.mouseHoverShape);
+              }
+              else if(preShowBorder && !com.showBorder){
+                // mouseLeave
+                this.setMouseShape("");
+              }
             }
           }
-        }
+        });
 
         if(this.drawLineMode){
           // 画线模式
@@ -207,16 +204,34 @@ export default {
         if(activeCom && mouse){
           const ox = ev.x - mouse.orgX;
           const oy = ev.y - mouse.orgY;
-          if(!(ox >= 10 || oy >= 10 || ox <= -10 || oy <= -10)) return;
+          if(!(ox >= 5 || oy >= 5 || ox <= -5 || oy <= -5)) return;
 
           mouse.dragging = true;
 
           if(activeCom.draggingBegin && mouse.draggingCount++ == 1){
+              if(activeCom.isMoving){
+                    // 在拖动的时候，改变当前元素的父节点，之后再还原
+                    const childEl = activeCom.$el;
+                    const oldParentEl = childEl.parentNode;
+                    const newParentEl = this.$el;
+                    this.cur.activeComReset = ()=>{
+                      oldParentEl.appendChild(childEl);
+                    };
+
+                    const rect = this.getChildRect(activeCom);
+                    this.cur.activeComRect = rect; 
+                    activeCom.setPosition(rect.l, rect.t);
+                    newParentEl.appendChild(childEl);
+              }
+              if(activeCom.isResizing){
+                this.cur.activeComRect = activeCom.getRect();
+              }
               activeCom.draggingBegin();
           }
 
           if(activeCom.draggingHandler){
-            activeCom.draggingHandler(this.cur.activeComRect, { ox, oy })
+            const { l: orgX, t: orgY, w: orgW, h: orgH } = this.cur.activeComRect;
+            activeCom.draggingHandler({ orgX, orgY, orgW, orgH }, { ox, oy })
           }
         }
       },
@@ -231,9 +246,55 @@ export default {
 
         if(mouse.dragging){
             // 拖拉缩放....结束
-            const { activeCom } = this.cur;
+            const { activeCom, activeComReset } = this.cur;
             if(activeCom.draggingEnd){
               activeCom.draggingEnd();
+            }
+
+            if(activeComReset){
+              activeComReset();
+            }
+
+            if(activeCom.tagName == "v-resizable"){
+              // 只对v-resiable处理
+              let preInContainer = activeCom.parent ? (activeCom.parent.tagName == "v-row" || activeCom.parent.tagName == "v-col") : false;
+              let nowInContainer = false;
+
+              let container = null;
+              let beforeChild = null;
+
+              TreeLoopSkip(this.components, activeCom, com => {
+                if(com.tagName == "v-row" || com.tagName == "v-col"){
+                  if(com.showBorder){
+                    // 嵌入容器内
+                    container = com;
+                    nowInContainer = true;
+                    for (let i = 0; i < container.children.length; i++) {
+                      const child = container.children[i];
+                      if(child.showBorder){
+                        beforeChild = child;
+                        break;
+                      }
+                    }
+                    return false;
+                  }
+                }
+              }, true)
+
+
+              if(nowInContainer){
+                  // 嵌入容器内
+                  activeCom.setPosition(0, 0);
+
+                  // 移动节点
+                  TreeMoveItem(this.components, container, activeCom, beforeChild);
+              }
+              else if(preInContainer){
+                  // 移出来了
+
+                  // 移动节点
+                  TreeMoveItem(this.components, null, activeCom);
+              }
             }
 
             this.emitTplChanged();
@@ -244,11 +305,7 @@ export default {
 
       // 通过名称获取组件
       getComponentById: function(comId){
-        for (let i = 0; i < this.components.length; i++) {
-          const com = this.components[i];
-          if(com.id == comId) return com;
-        }
-        return null;
+        return TreeFindSingle(this.components, com => com.id == comId);
       },
 
       // 创建组件名称
@@ -265,11 +322,7 @@ export default {
 
       // 组件名是否有效
       isComponentIdVaild:function(comId){
-        for (let i = 0; i < this.components.length; i++) {
-          const com = this.components[i];
-          if(com.id == comId) return false;
-        }
-        return true;
+        return !TreeFindSingle(this.components, com => com.id == comId);
       },
 
       // 获取鼠标偏移量
@@ -284,6 +337,18 @@ export default {
         return { x, y };
       },
 
+      // 获取子控件的矩形大小
+      getChildRect(item, offset){
+        const containerRect = this.$el.getBoundingClientRect();
+        const childRect = item.$el.getBoundingClientRect();
+        return { 
+          l: childRect.left - containerRect.left,
+          t: childRect.top - containerRect.top,
+          w: childRect.width,
+          h: childRect.height
+        }
+      },
+
       // 设置鼠标样式
       setMouseShape: function(shape){
         this.$el.style.cursor = shape;
@@ -293,18 +358,27 @@ export default {
       exportChildrenTpl: function(){
         let rtn = [];
 
-        for (let i = 0; i < this.components.length; i++) {
-          const com = this.components[i];
-          rtn.push(com.exportTpl);
-        }
+        const helper = (tree, arr)=>{
+          if(!tree) return;
+          for (let i = 0; i < tree.length; i++) {
+            const node = tree[i];
+            let obj = GetComExportTpl(node);
+            if(node.children && node.children.length){
+              helper(node.children, (obj.children = []));
+            }
+            arr.push(obj);
+          }
+        };
+
+        helper(this.components, rtn);
 
         return rtn;
       },
 
       // 发送事件
       emitTplChanged: function(children){
-          const childrenTpl = children || this.exportChildrenTpl();
-          this.$emit("tplChanged", { components: childrenTpl });
+            const childrenTpl = children || this.exportChildrenTpl();
+            this.$emit("tplChanged", { components: childrenTpl });
       },
 
       // 发送事件
@@ -312,20 +386,21 @@ export default {
         this.$emit("selChanged", this.cur.activeCom, this.designProps, this.bindProps);
       },
 
+      // 创建控件
+      createVComponent: function(pos, componentName){
+        return this.createVResiable(pos, componentName);
+      },
+
       // 创建VResiable
       createVResiable: function({ x, y }, childComponent){
-        if(childComponent == "v-row" || childComponent == "v-col"){
-          // 容器类
-          return {
-            tag: childComponent,
-            id: this.createNewComponentId(childComponent)
-          }
-        }
         return { 
           tag: "v-resizable", 
           id: this.createNewComponentId('v-resizable'),
           designProps: { pos: `${x},${y}` },
-          children: [ { tag: childComponent } ]
+          children: [ { 
+            tag: childComponent,
+            id: this.createNewComponentId(childComponent),
+          } ]
         }
       },
 
@@ -355,13 +430,43 @@ export default {
   },
   watch: {
     drawLineMode: function(val){
-      for (let i = 0; i < this.components.length; i++) {
-        const com = this.components[i];
-        com.connectMode = val;
-      }
+      TreeLoop(this.components, com => {
+        if(com.hasOwnProperty("connectMode")){
+          com.connectMode = val;
+        }
+      });
     },
     tpl: function(){
         console.log("tpl changed");
+        this.$nextTick(()=>{
+            // 子组件已显示
+            let vueComs = [];
+
+            // 跳过v-line-simple控件
+            for (let i = 1; i < this.$children.length; i++) {
+              vueComs.push(this.$children[i]);
+            }
+
+            // 遍历
+            TreeLoop(vueComs, (item, parent)=>{
+                item.parent = parent; // 额外添加，自用
+                item.children = [];   // 额外添加，自用
+                item.tagName = GetComTag(item); // 额外添加，自用
+                if(parent){
+                  parent.children.push(item);
+                  if(item.tagName != "v-row" && item.tagName != "v-col" && parent.tagName == "v-resizable"){
+                      return true;                    
+                  }
+                }
+            }, false, "$children");
+            this.components = vueComs;
+
+            // 初始化
+            TreeLoop(vueComs, item=>{
+                InitComDesignProps(item, this.emitTplChanged); // 初始化DesignProps
+                InitComBindProps(item, this.emitTplChanged); // 初始化BindProps
+            })
+        })
     }
   }
 }
@@ -370,8 +475,16 @@ export default {
 <style lang="less">
   .form-design{
       position: relative;
-      &:focus{
-          outline: none;
+
+      &:focus {
+        outline-style: none;
+      }
+
+      & *{
+        -webkit-user-select: none;  /* Chrome all / Safari all */
+        -moz-user-select: none;     /* Firefox all */
+        -ms-user-select: none;      /* IE 10+ */
+        user-select: none;          /* Likely future */      
       }
   }
 </style>

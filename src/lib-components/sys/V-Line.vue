@@ -1,19 +1,16 @@
 <template>
-  <canvas class="v-line"
-    :style="selfStyle" :width="w" :height="h" 
-    ></canvas>
+    <canvas class="v-line" :style="selfStyle" :width="w" :height="h"></canvas>
 </template>
 
 <script>
-import { GetPath, GetPathRect, IsPointInPath } from "./lineUtility"
+import { GetPath, GetPathRect, IsPointInPath, GetFirstInflectionPoint } from "./lineUtility"
 import { QuZheng, GetStyleValue } from "./utility"
 import CommonMixin from "./componentMixin"
 
 export default {
     inject: [
         'isComponentIdVaild',
-        'getComponentById',
-        'getMouseOffset'
+        'getComponentById'
     ],
     data: function(){
         return {
@@ -31,12 +28,12 @@ export default {
             // 线条宽度
             width: null,
             // 线条颜色
-            color: null,
+            color: null
         };
     },
     designProps: [
         {
-            title: '唯一标志',
+            title: '唯一标识',
             name: 'id',
             get: function(){
                 return this.id;
@@ -113,11 +110,11 @@ export default {
     methods: {
         // 内部使用
         paint: function(){
-            if(!this.drawPath || this.drawPath.length == 1) return;
+            const paths = this.drawPath;
 
-            let paths = this.drawPath;
+            if(!paths || paths.length == 1) return;
 
-            const pathRect = GetPathRect(this.drawPath);
+            const pathRect = GetPathRect(paths);
             this.x = pathRect.l - 10;
             this.y = pathRect.t - 10;
             this.w = pathRect.w + 20;
@@ -162,8 +159,8 @@ export default {
         },
 
         // 外部使用
-        exportMouseDown: function(ev){
-            let pointInPath = IsPointInPath(this.getMouseOffset(ev), this.drawPath, 5);
+        exportMouseDown: function(point){
+            let pointInPath = IsPointInPath(point, this.drawPath, 5);
             if(pointInPath){
                 let [pt, npt] = pointInPath.path;
                 let orgX = pt.x;
@@ -262,10 +259,6 @@ export default {
         display: inline-block;
         position: absolute;
         // background: yellow;
-        background: transparent;
-
-        &:focus{
-            outline: none;
-        }
+        // background: transparent;
     }
 </style>

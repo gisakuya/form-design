@@ -1,47 +1,94 @@
 <template>
-  <div class="v-vcontainer" :style="selftStyle" ></div>
+  <div class="v-col" :style="selftStyle" >
+      <slot></slot>
+  </div>
 </template>
 
 <script>
-function getAlign(align){
-    if(align == "top") return "flex-start";
-    if(align == "center") return "center";
-    if(align == "bottom") return "flex-end";
-    if(align == "between") return "space-between";
-    if(align == "around") return "space-around";
-
-    return null;
-}
-
-function getWrap(warp){
-    return warp ? 'warp':'nowrap';
-}
+import CommonMixin from "./componentMixin"
 
 export default {
-    props: {
-        wrap: {
-            type: Boolean,
-            default: false
-        },
-        align: {
-            type: String,
-            default: null
+    data: function(){
+        return {
+            wrap: false
         }
     },
+    designProps: [
+        {
+            title: '唯一标识',
+            name: 'id',
+            get: function(){
+                return this.id;
+            },
+            set: function(val){
+                if(!val) return;
+                if(!this.isComponentIdVaild(val)){
+                    alert("该标志已被占用!");
+                }
+                else{
+                    this.id = val;
+                }
+            },
+            init: function(val){
+                this.id = val;
+            }
+        },
+        {
+            title: '内容换行',
+            name: 'wrap',
+            enum: [
+                { title: '是', value: true },
+                { title: '否', value: false }
+            ]
+        },
+        {
+            title: '垂直对齐',
+            name: 'valign',
+            enum: [
+                { title: '上', value: 'flex-start' },
+                { title: '中', value: 'center' },
+                { title: '下', value: 'flex-end' },
+                { title: '两端', value: 'space-between' },
+                { title: '等间距', value: 'space-around' }
+            ]
+        },
+        {
+            title: '水平对齐',
+            name: 'align',
+            enum: [
+                { title: '左', value: 'flex-start' },
+                { title: '中', value: 'center' },
+                { title: '右', value: 'flex-end' },
+                { title: '拉伸', value: 'stretch' },
+                { title: '基线', value: 'baseline' }
+            ]
+        }
+    ],
     computed: {
         selftStyle: function(){
             return {
-                flexWrap: getWrap(this.wrap),
-                justifyContent: getAlign(this.align)
+                borderColor: this.isShowBorder ? 'red' : null,
+                flexWrap: this.wrap ? 'wrap':'nowrap',
+                justifyContent: this.valign||null,
+                alignItems: this.align||null,
             }
         }
-    }
+    },
+    mixins: [ CommonMixin ]
 }
 </script>
 
 <style lang="less">
-    .v-vcontainer {
+    .v-col {
         display: flex;
-        flex-direction: column; // 垂直排列
+        flex-direction: column;
+        padding: 5px;
+        border: 1px lightgray dashed;
+        min-width: 20px;
+        min-height: 200px;
+
+        & > * {
+            position: relative !important;
+        }
     }
 </style>

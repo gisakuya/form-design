@@ -491,8 +491,84 @@ export function IsPointInPath(point, path, offset){
     return false;
 }
 
+// 将点偏移一定距离
+function OffsetPoint(pt ,offset) {
+    return offset ? { x: pt.x + offset.x, y: pt.y + offset.y } : pt;
+}
+
+// 根据2个对角点，生成一个矩形
+function GetRectFromDiagonalPoint(pt1, pt2) {
+    let xmin, ymin, xmax, ymax;
+    if(pt1.x > pt2.x){
+        xmin = pt2.x; xmax = pt1.x;
+    }
+    else{
+        xmin = pt1.x; xmax = pt2.x;
+    }
+
+    if(pt1.y > pt2.y){
+        ymin = pt2.y; ymax = pt1.y;
+    }
+    else{
+        ymin = pt1.y; ymax = pt2.y;
+    }
+
+    return { lt: { x: xmin, y: ymin }, rt: { x: xmax, y: ymin }, lb: { x: xmin, y:ymax }, rb: { x: xmax, y: ymax } };
+}
+
+// 查找路径上第一个拐点(供外部VLine使用)
+export function GetFirstInflectionPoint(paths, offset) {
+    if(!paths || paths.length == 0) {
+        return null;
+    }
+
+    if(paths.length == 1){
+        return paths[0];
+    }
+
+    const pt0 = paths[0], pt1 = paths[1],  pt2 = paths[2];
+    
+    if(paths.length == 2){
+        if(pt1.x == pt2.x){
+            // 垂线
+            return OffsetPoint({ x: pt0.x, y: (pt0.y + pt1.y)/2 }, { x: offset.x, y: 0 });
+        }
+        // 水平线
+        return OffsetPoint({ x: (pt0.x + pt1.x)/2, y: pt0.y  }, { x: 0, y: -offset.y });
+    }
+
+    let dir = null;
+    const rect = GetRectFromDiagonalPoint(pt0, pt2);
+    for (const key in rect) {
+        const pt = rect[key];
+        if(pt.x == pt1.x && pt.y == pt1.y){
+            dir = key;
+            break;
+        }
+    }
+
+    if(dir == "lt"){
+        // 左上
+        return OffsetPoint(pt1, { x: -offset.x, y: -offset.y });
+    }
+    else if(dir == "rt"){
+        // 右上
+        return OffsetPoint(pt1, { x: offset.x, y: -offset.y });
+    }
+    else if(dir == "lb"){
+        // 左下
+        return OffsetPoint(pt1, { x: -offset.x, y: offset.y });
+    }
+    else if(dir == "rb"){
+        // 右下
+        return OffsetPoint(pt1, { x: offset.x, y: offset.y });
+    }
+
+    return null;
+}
+
 // 打印路径(调试用)
-function PrintPath(path){
+export function PrintPath(path){
     let log = "";
     let dir = "";
     let pt, npt;

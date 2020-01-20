@@ -21,19 +21,22 @@
       <el-main>
           <v-form-design ref="formDesign" style="position:relative; height: 500px;" 
               :drawLineMode="drawLineMode"
-              v-model="tpl2"
+              v-model="tpl"
               @selChanged="selChanged"
           >
           </v-form-design>
 
           <div style="position:relative; height: 300px;">
-            {{ tpl2 }}
+            {{ tpl }}
             <textarea  @change="tplChanged($event.target.value)" style="width: 100%; height:100%;"></textarea>
           </div>
       </el-main>
     </el-container>
 
     <el-aside width="260px" style="background-color: rgb(238, 241, 246);">
+      <div style="text-align:center;background:#FAF5F5;padding:5px;">
+        {{ (activeCom ? activeCom.tagName : "") }}
+      </div>
       <el-menu :default-openeds="['0','1']">
           <el-submenu index="0">
             <template slot="title">
@@ -44,7 +47,10 @@
               <tr v-for="prop in designProps" :key="prop.title">
                 <td style="width:80px;"><span style="margin-left:5px;font-size:14px">{{ prop.title }}</span></td>
                 <td>
-                    <input class="el-input__inner"
+                    <el-select v-if="prop.enum" v-model="prop.model" clearable>
+                      <el-option v-for="o in prop.enum" :key="o.value" :label="o.title" :value="o.value"></el-option>
+                    </el-select>
+                    <input v-else class="el-input__inner"
                       :title="prop.tooltip"
                       :value="prop.get()" 
                       :readonly="prop.readonly"
@@ -113,23 +119,10 @@ export default {
         }
       ],
       drawLineMode: false,
+      activeCom: null,
       designProps: [],
       bindProps: {},
-      tpl2: { 
-        components:[
-          { tag: "v-resizable", id: "cmp1",
-            children: [
-              { tag: "nb-sun2000-36k", designProps: { "cust-attr": "haha" } }
-            ]
-          },
-          { tag: "v-resizable", id: "cmp2", designProps: { pos: "500,150", size: "200,100" },
-            children: [
-              { tag: "nb-sun2000-36k", designProps: { "cust-attr": "kaka" } }
-            ]
-          },
-          { tag: "v-line", id: "line1", designProps: { source: "cmp1.rc", dest: "cmp2.lc" } }
-        ]
-      }
+      tpl: { components: [] }
     }
   },
   methods: {
@@ -140,20 +133,21 @@ export default {
 
       // 选择发生变化
       selChanged: function(com, designProps, bindProps){
+        this.activeCom = com
         this.designProps = designProps
         this.bindProps = bindProps;
       },
 
       // 添加绑定属性
       addBindProp: function(nameEl, valEl){
-        this.bindProps.setProp(nameEl.value, valEl.value);
+        this.bindProps.addProp(nameEl.value, valEl.value);
         nameEl.value = "";
         valEl.value = "";
       },
 
       // 模板发生变化
       tplChanged: function(val){
-        this.tpl2 = val ? JSON.parse(val) : [];
+        this.tpl = val ? JSON.parse(val) : [];
       }
   },
   mounted: function(){

@@ -5,37 +5,17 @@
 </template>
 
 <script>
-import { GetStyleValue } from "./utility"
 import CommonMixin from "./componentMixin"
 
-function getAlign(align){
-    if(align == "left") return "flex-start";
-    if(align == "center") return "center";
-    if(align == "right") return "flex-end";
-    if(align == "between") return "space-between";
-    if(align == "around") return "space-around";
-
-    return null;
-}
-
 export default {
-    props: {
-        wrap: {
-            type: Boolean,
-            default: false
-        },
-        align: {
-            type: String,
-            default: null
-        },
-        height: {
-            type: [String, Number],
-            default: 50
+    data: function(){
+        return {
+            wrap: false
         }
     },
     designProps: [
         {
-            title: '唯一标志',
+            title: '唯一标识',
             name: 'id',
             get: function(){
                 return this.id;
@@ -52,26 +32,47 @@ export default {
             init: function(val){
                 this.id = val;
             }
+        },
+        {
+            title: '内容换行',
+            name: 'wrap',
+            enum: [
+                { title: '是', value: true },
+                { title: '否', value: false }
+            ]
+        },
+        {
+            title: '水平对齐',
+            name: 'align',
+            enum: [
+                { title: '左', value: 'flex-start' },
+                { title: '中', value: 'center' },
+                { title: '右', value: 'flex-end' },
+                { title: '两端', value: 'space-between' },
+                { title: '等间距', value: 'space-around' }
+            ]
+        },
+        {
+            title: '垂直对齐',
+            name: 'valign',
+            enum: [
+                { title: '上', value: 'flex-start' },
+                { title: '中', value: 'center' },
+                { title: '下', value: 'flex-end' },
+                { title: '拉伸', value: 'stretch' },
+                { title: '基线', value: 'baseline' }
+            ]
         }
     ],
     computed: {
         selftStyle: function(){
             return {
                 borderColor: this.isShowBorder ? 'red' : null,
-                flexWrap: this.warp ? 'warp':'nowrap',
-                justifyContent: getAlign(this.align),
-                height: GetStyleValue(this.height),
+                flexWrap: this.wrap ? 'wrap':'nowrap',
+                justifyContent: this.align||null,
+                alignItems: this.valign||null,
             }
         }
-    },
-    methods: {
-        initDesignProps: function(){
-            let arr = [];
-            this.initDesignPropsCore(arr, this);
-            this.designProps = arr;
-        },
-        initBindProps: function(){
-        },
     },
     mixins: [ CommonMixin ]
 }
@@ -80,12 +81,14 @@ export default {
 <style lang="less">
     .v-row {
         display: flex;
-        flex-direction: row; // 水平排列
-
+        flex-direction: row;
+        padding: 5px;
         border: 1px lightgray dashed;
+        min-width: 200px;
+        min-height: 20px;
 
         & > * {
-            position: relative;
+            position: relative !important;
         }
     }
 </style>

@@ -1,10 +1,15 @@
 <template>
-  <div class="v-resiable" :style="selfStyle">
+  <div class="v-resiable" :align="align" :style="selfStyle">
+      {{ _uid }}
       <slot></slot>
-      <!-- 遮罩 -->
-      <div v-show="isShowBorder" class="layer" @mousedown.left.self="mouseDown($event, moveSelf)"></div>
+      <!-- 移动图标 -->
+      <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" class="mover" v-show="!connectMode && isShowBorder" @mousedown.left="mouseDown($event, moveSelf)">
+        <rect fill="#0AAEFA" width="100%" height="100%"  />
+        <path fill="white" 
+            d="m0,7.92102l3.5926,-3.56446l0,1.78223l2.59465,0l0,-2.57433l-1.7963,0l3.5926,-3.56446l3.5926,3.56446l-1.7963,0l0,2.57433l2.59465,0l0,-1.78223l3.5926,3.56446l-3.5926,3.56446l0,-1.78223l-2.59465,0l0,2.57433l1.7963,0l-3.5926,3.56446l-3.5926,-3.56446l1.7963,0l0,-2.57433l-2.59465,0l0,1.78223l-3.5926,-3.56446z"/>
+      </svg>
       <!-- 左上角 -->
-      <div class="ctl-dot tl" :class="dotCls" v-show="isShowBorder"
+      <div class="ctl-dot tl" :class="dotCls" v-show="connectMode && isShowBorder"
             @mousedown.left="dotMouseDown($event, dotMoveLeftUp, 'tl')"></div>
       <!-- 右上角 -->
       <div class="ctl-dot tr" :class="dotCls" v-show="isShowBorder" 
@@ -42,12 +47,14 @@ export default {
     data: function() {
         return {
             connectMode: false,
-            draggingDot: null
+            draggingDot: null,
+            isMoving: false,
+            isResizing: false
         };
     },
     designProps: [
         {
-            title: '唯一标志',
+            title: '唯一标识',
             name: 'id',
             get: function(){
                 return this.id;
@@ -69,21 +76,22 @@ export default {
             title: '位置',
             name: 'pos',
             tooltip: '格式：x,y',
+            default: '0,0',
             get: function() {
                 return `${this.x},${this.y}`;
             },
-            set: function(val, i){
+            set: function(val){
                 if(!val) return;
                 let tmp = val.split(',');
                 this.x = +tmp[0];
                 this.y = +tmp[1];
-                if(!i) this.emitDotPosChange();
             }
         },
         {
             title: '大小',
             name: 'size',
             tooltip: '格式：w,h',
+            default: '0,0',
             get: function() {
                 return `${this.w},${this.h}`;
             },
@@ -92,7 +100,6 @@ export default {
                 let tmp = val.split(',');
                 this.w = tmp[0].trim();
                 this.h = tmp[1].trim();
-                if(!i) this.emitDotPosChange();
             },
             init: function(val){
                 if(val){
@@ -100,20 +107,32 @@ export default {
                     this.w = tmp[0];
                     this.h = tmp[1];
                 }
-                else{
-                    this.w = this.$el.offsetWidth;
-                    this.h = this.$el.offsetHeight;
-                }
             }
+        },
+        {
+            title: '水平对齐',
+            name: 'align',
+            enum: [
+                { title: '左', value: 'left' },
+                { title: '中', value: 'center' },
+                { title: '右', value: 'right' }
+            ]
+        },
+        {
+            title: '放大比例',
+            name: 'flexGrow',
+            tooltip: '默认(0)不放大, 占据剩余空间的比例' 
+        },
+        {
+            title: '缩小比例',
+            name: 'flexShrink',
+            tooltip: '默认(1)缩小, 占据剩余空间的比例. 0表示不缩小' 
         },
     ],
     methods: {
         // 供外部使用
         getDotPos: function(dot){
-            const l = this.$el.offsetLeft;
-            const t = this.$el.offsetTop;
-            const w = this.$el.offsetWidth;
-            const h = this.$el.offsetHeight;
+            const { l, t, w, h } = this.getRect();
             if(dot == "tc"){
                 // 上中
                 return { x: l + w/2, y: t };
@@ -147,12 +166,31 @@ export default {
                 return { x: l + w, y: t + h };
             }
         },
-        getRect: function(){
-            const l = this.$el.offsetLeft;
-            const t = this.$el.offsetTop;
-            const w = this.$el.offsetWidth;
-            const h = this.$el.offsetHeight;
-            return { l, t, w, h };
+
+        // Self
+        mouseDown: function(ev, handler){
+            if(this.connectMode){
+                this.draggingDot = null;
+            }
+
+            this.draggingBegin = () => {
+                this.setMouseShape("move");
+            };
+            this.draggingEnd = () => {
+                this.isMoving = false;
+                this.isResizing = false;
+                this.setMouseShape("");
+            };
+
+            this.isMoving = true;
+            this.isResizing = false;
+            this.draggingHandler = handler;
+        },
+        moveSelf: function({ orgX,  orgY }, { ox, oy }){
+            this.x = QuZheng(orgX + ox);
+            this.y = QuZheng(orgY + oy);
+
+            this.emitDotPosChange();
         },
 
         // Dot
@@ -168,23 +206,15 @@ export default {
                 this.setMouseShape(cursor);
             };
             this.draggingEnd = () => {
+                this.isMoving = false;
+                this.isResizing = false;
                 this.setMouseShape("");
             };
+
+            this.isMoving = false;
+            this.isResizing = true;
             this.draggingHandler = handler;
         },
-
-        // Self
-        mouseDown: function(ev, handler){
-            if(this.connectMode){
-                this.draggingDot = null;
-            }
-
-            this.draggingBegin = null;
-            this.draggingEnd = null;
-            this.draggingHandler = handler;
-        },
-
-        // 放大缩小事件
         dotMoveUp: function({ orgY, orgH }, { oy }){
             this.y = QuZheng(orgY + oy); // y + oy
             this.h = (orgY + orgH) - this.y;  // b - y
@@ -223,16 +253,16 @@ export default {
             this.dotMoveRight(x, y);
             this.dotMoveDown(x, y);
         },
-        moveSelf: function({ orgX,  orgY }, { ox, oy }){
-            this.x = QuZheng(orgX + ox);
-            this.y = QuZheng(orgY + oy);
 
-            this.emitDotPosChange();
-        },
         emitDotPosChange: function(){
             this.$nextTick(()=>{
                 this.$emit("DotPosChanged");
             })
+        },
+
+        setPosition: function(x, y){
+            this.x = x;
+            this.y = y;
         }
     },
     computed: {
@@ -244,12 +274,14 @@ export default {
         },
         // 本身样式
         selfStyle: function(){
-            return { 
-                left: GetStyleValue(this.x), 
+            return {
+                borderColor: this.isShowBorder ? '#9ed0fa' : 'transparent',
+                left: GetStyleValue(this.x),
                 top: GetStyleValue(this.y),
                 width: GetStyleValue(this.w),
                 height: GetStyleValue(this.h),
-                borderColor: this.isShowBorder ? '#9ed0fa' : 'transparent',
+                flexGrow: this.flexGrow,
+                flexShrink: this.flexShrink
             };
         },
         isShowBorder: function(){
@@ -261,6 +293,9 @@ export default {
 </script>
 
 <style lang="less">
+    // 控制点的半径
+    @dotRadius: 5px;
+
     .v-resiable {
         display: inline-block;
         position: absolute;
@@ -271,98 +306,106 @@ export default {
         &:focus{
             outline: none;
         }
-    }
 
-    // 控制点的半径
-    @dotRadius: 5px;
+        // 移动层
+        & .mover {
+            position: absolute;
+            left: -8px;
+            top: -8px;
+            cursor: move;
+            z-index: 100;
+        }
 
-    .ctl-dot {
-        background: #44aaff;
-        width: @dotRadius*2;
-        height: @dotRadius*2;
-        border-radius: 50%;
-        position: absolute;
-        z-index: 99;
-        
-        // 左上角
-        &.tl {
-            left: -@dotRadius;
-            top: -@dotRadius;
-            cursor: nw-resize;
-        }
-        // 右上角
-        &.tr {
-            right: -@dotRadius;
-            top: -@dotRadius;
-            cursor: ne-resize;
-        }
-        // 左下角
-        &.lb {
-            left: -@dotRadius;
-            bottom: -@dotRadius;
-            cursor: sw-resize;
-        }
-        // 右下角
-        &.rb {
-            right: -@dotRadius;
-            bottom: -@dotRadius;
-            cursor: se-resize;
-        }
-        // 上中
-        &.tc {
-            top: -@dotRadius;
+        // 遮罩层
+        & .layer {
+            top:0px;
             left: 0px;
-            right: 0px;
-            margin-left: auto; 
-            margin-right: auto; 
-            cursor: n-resize;
+            width: 100%;
+            height: 100%;
+            z-index: 99;
+            position: absolute;
+            visibility: hidden;
+            background: yellow;
+            opacity: 0.5;
         }
-        // 下中
-        &.bc {
-            bottom: -@dotRadius;
-            left: 0px;
-            right: 0px;
-            margin-left: auto; 
-            margin-right: auto;
-            cursor: n-resize;
-        }
-        // 左中
-        &.lc {
-            left: -@dotRadius*1.3;
-            top: 0px;
-            bottom: 0px;
-            margin-top: auto;
-            margin-bottom: auto;
-            cursor: e-resize;
-        }
-        // 右中
-        &.rc {
-            right: -@dotRadius*1.3;
-            top: 0px;
-            bottom: 0px;
-            margin-top: auto;
-            margin-bottom: auto;
-            cursor: e-resize;
-        }
-    }
 
-    // 连接模式
-    .connect-mode {
-        cursor: crosshair !important;
-        &:hover {
-            background: red;
+        // 控制点
+        & .ctl-dot {
+                background: #44aaff;
+                width: @dotRadius*2;
+                height: @dotRadius*2;
+                border-radius: 50%;
+                position: absolute;
+                z-index: 99;
+                
+                // 左上角
+                &.tl {
+                    left: -@dotRadius;
+                    top: -@dotRadius;
+                    cursor: nw-resize;
+                }
+                // 右上角
+                &.tr {
+                    right: -@dotRadius;
+                    top: -@dotRadius;
+                    cursor: ne-resize;
+                }
+                // 左下角
+                &.lb {
+                    left: -@dotRadius;
+                    bottom: -@dotRadius;
+                    cursor: sw-resize;
+                }
+                // 右下角
+                &.rb {
+                    right: -@dotRadius;
+                    bottom: -@dotRadius;
+                    cursor: se-resize;
+                }
+                // 上中
+                &.tc {
+                    top: -@dotRadius;
+                    left: 0px;
+                    right: 0px;
+                    margin-left: auto; 
+                    margin-right: auto; 
+                    cursor: n-resize;
+                }
+                // 下中
+                &.bc {
+                    bottom: -@dotRadius;
+                    left: 0px;
+                    right: 0px;
+                    margin-left: auto; 
+                    margin-right: auto;
+                    cursor: n-resize;
+                }
+                // 左中
+                &.lc {
+                    left: -@dotRadius*1.3;
+                    top: 0px;
+                    bottom: 0px;
+                    margin-top: auto;
+                    margin-bottom: auto;
+                    cursor: e-resize;
+                }
+                // 右中
+                &.rc {
+                    right: -@dotRadius*1.3;
+                    top: 0px;
+                    bottom: 0px;
+                    margin-top: auto;
+                    margin-bottom: auto;
+                    cursor: e-resize;
+                }
+            }
+
+        // 连接模式
+        & .connect-mode {
+            cursor: crosshair !important;
+            &:hover {
+                background: red;
+            }
         }
-    }
-    
-    // 遮罩
-    .layer {
-        top:0px;
-        left: 0px;
-        width: 100%;
-        height: 100%;
-        z-index: 99;
-        position: absolute;
-        // background: yellow;
-        // opacity: 0.5;
     }
 </style>
