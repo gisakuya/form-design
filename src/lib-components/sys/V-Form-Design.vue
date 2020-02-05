@@ -453,12 +453,18 @@ export default {
                 item.children = [];   // 额外添加，自用
                 item.tagName = GetComTag(item); // 额外添加，自用
                 if(parent){
-                  parent.children.push(item);
+                  const _index = item.$el._index;
+                  if(parent.children.length > _index){
+                    parent.children.splice(_index, 0, item);
+                  }else{
+                    parent.children.push(item);
+                  }
                   if(item.tagName != "v-row" && item.tagName != "v-col" && parent.tagName == "v-resizable"){
                       return true;                    
                   }
                 }
             }, false, "$children");
+
             this.components = vueComs;
 
             // 初始化

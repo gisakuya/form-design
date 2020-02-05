@@ -1,6 +1,6 @@
 <template>
   <div class="v-resiable" :align="align" :style="selfStyle">
-      {{ _uid }}
+      <!-- {{ _uid }} -->
       <slot></slot>
       <!-- 移动图标 -->
       <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" class="mover" v-show="!connectMode && isShowBorder" @mousedown.left="mouseDown($event, moveSelf)">

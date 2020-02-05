@@ -15,18 +15,19 @@ function GetRealValue(ctx, valueExp){
     return { realValue: valueExp, matchName: null };
 }
 
-function DealComDef(ctx, com){
+function DealComDef(ctx, com, index){
     const _this = ctx.parent;
 
     let children = [];
     if(com.children){
         for (let i = 0; i < com.children.length; i++) {
             const child = com.children[i];
-            children.push(DealComDef(ctx, child));
+            children.push(DealComDef(ctx, child, i));
         }
     }
 
     const domProps = {
+        _index: index,
         _designProps: { id: com.id, ...(com.designProps || {}) },
         _bindProps: com.bindProps || {},
         _bindAttrs: com.bindAttrs || {},
@@ -73,7 +74,7 @@ function PreDealTemplate(ctx, components){
 
     for (let i = 0; i < components.length; i++) {
         const com = components[i];
-        arr.push(DealComDef(ctx, com));
+        arr.push(DealComDef(ctx, com, i));
     }
 
     return arr;
