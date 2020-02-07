@@ -54,10 +54,55 @@ export default {
   },
   computed: {
     designProps: function(){
-      return this.cur.designProps;
+      if(this.cur && this.cur.activeCom){
+
+        let activeCom = this.cur.activeCom;
+        while (activeCom.tagName != 'v-resizable') {
+          activeCom = activeCom.parent;
+        }
+
+        const arr = [];
+
+        const add = ctx => {
+          if(!ctx.designProps || !ctx.designProps.length) return;
+          for (let i = 0; i < ctx.designProps.length; i++) {
+            const p = ctx.designProps[i];
+            arr.push(p);
+          }
+        };
+
+        add(activeCom);
+        add(activeCom.children[0]);
+
+        return arr;
+      }
+
+      return {};
     },
     bindProps: function(){
-      if(this.cur && this.cur.bindProps) return this.cur.bindProps;
+      if(this.cur && this.cur.activeCom){
+
+        let activeCom = this.cur.activeCom;
+        while (activeCom.tagName != 'v-resizable') {
+          activeCom = activeCom.parent;
+        }
+
+        const arr = [];
+
+        const add = ctx => {
+          if(!ctx.bindProps || !ctx.bindProps.length) return;
+          for (let i = 0; i < ctx.bindProps.length; i++) {
+            const p = ctx.bindProps[i];
+            arr.push(p);
+          }
+        };
+
+        add(activeCom);
+        add(activeCom.children[0]);
+
+        return arr;
+      }
+      
       const arr = [];
       for (const key in this.dynamicProps) {
         arr.push({
