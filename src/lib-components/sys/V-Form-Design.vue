@@ -87,7 +87,7 @@ export default {
       delCom: function(){
         let activeCom = this.cur.activeCom;
         if(!activeCom) return;
-        while (!activeCom.delSelf) {
+        while (activeCom.tagName != 'v-resizable') {
           activeCom = activeCom.parent;
         }
         this.cur = {
