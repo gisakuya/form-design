@@ -9,6 +9,7 @@
 
         <p>动态属性：{{dynamicProps}}</p>
         <v-line-simple ref="vline"></v-line-simple>
+        <v-focus-rect ref="vfocus"></v-focus-rect>
         <v-form-design-tpl :template="tpl.components">
         </v-form-design-tpl>
 
@@ -57,14 +58,16 @@ export default {
       if(this.cur && this.cur.activeCom){
 
         let activeCom = this.cur.activeCom;
-        while (activeCom.tagName != 'v-resizable') {
-          activeCom = activeCom.parent;
+        if(activeCom.tagName != 'v-line'){
+          while (activeCom.tagName != 'v-resizable') {
+            activeCom = activeCom.parent;
+          }
         }
 
         const arr = [];
 
         const add = ctx => {
-          if(!ctx.designProps || !ctx.designProps.length) return;
+          if(!ctx || !ctx.designProps || !ctx.designProps.length) return;
           for (let i = 0; i < ctx.designProps.length; i++) {
             const p = ctx.designProps[i];
             arr.push(p);
@@ -83,14 +86,16 @@ export default {
       if(this.cur && this.cur.activeCom){
 
         let activeCom = this.cur.activeCom;
-        while (activeCom.tagName != 'v-resizable') {
-          activeCom = activeCom.parent;
+        if(activeCom.tagName != 'v-line'){
+          while (activeCom.tagName != 'v-resizable') {
+            activeCom = activeCom.parent;
+          }
         }
 
         const arr = [];
 
         const add = ctx => {
-          if(!ctx.bindProps || !ctx.bindProps.length) return;
+          if(!ctx || !ctx.bindProps || !ctx.bindProps.length) return;
           for (let i = 0; i < ctx.bindProps.length; i++) {
             const p = ctx.bindProps[i];
             arr.push(p);
@@ -210,6 +215,10 @@ export default {
           }
         }
 
+        if(!activeCom){
+
+        }
+
         this.emitSelChanged();
       },
 
@@ -275,7 +284,7 @@ export default {
           }
 
           if(activeCom.draggingHandler){
-            const { l: orgX, t: orgY, w: orgW, h: orgH } = this.cur.activeComRect;
+            const { l: orgX, t: orgY, w: orgW, h: orgH } = this.cur.activeComRect || {};
             activeCom.draggingHandler({ orgX, orgY, orgW, orgH }, { ox, oy })
           }
         }
@@ -487,8 +496,8 @@ export default {
             // 子组件已显示
             let vueComs = [];
 
-            // 跳过v-line-simple控件
-            for (let i = 1; i < this.$children.length; i++) {
+            // 跳过v-line-simple控件和v-focus-rect控件
+            for (let i = 2; i < this.$children.length; i++) {
               vueComs.push(this.$children[i]);
             }
 
@@ -526,6 +535,7 @@ export default {
 <style lang="less">
   .form-design{
       position: relative;
+      border: 1px dashed pink;
 
       &:focus {
         outline-style: none;
