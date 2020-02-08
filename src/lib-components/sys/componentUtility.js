@@ -59,11 +59,24 @@ export function GetComExportTpl(ctx){
 }
 
 // 判断点是否在控件的边界内
-export function IsPointInComBoundary(ctx, { x, y }){
+export function IsPointInComBoundary(ctx, { x, y }, offset){
     if(!ctx) return false;
     let { left: l, top: t, right: r, bottom: b } = ctx.$el.getBoundingClientRect();
-    return l <= x && x <= r &&
-            t <= y && y <= b;
+    if(offset){
+        l -= offset;
+        t -= offset;
+        r += offset;
+        b += offset;
+    }
+    return l <= x && x <= r && t <= y && y <= b;
+}
+
+// 判断子控件是否在父控件的范围内
+export function IsComInComBoundary(parent, child){
+    const rect1 = parent.$el.getBoundingClientRect();
+    const rect2 = child.$el.getBoundingClientRect();
+    return rect1.left <= rect2.left && rect1.top <= rect2.top &&
+           rect1.right >= rect2.right && rect1.bottom >= rect2.bottom;
 }
 
 // 初始化组件的DesignProps

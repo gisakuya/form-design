@@ -18,7 +18,7 @@
 
 <script>
 import { TimerHeper, TreeLoop, TreeLoopSkip, TreeFindSingle, TreeFindCollect, TreeDelItem, TreeMoveItem } from "./utility";
-import { GetComExportTpl, IsPointInComBoundary, InitComDesignProps, InitComBindProps, GetComTag  } from "./componentUtility";
+import { GetComExportTpl, IsPointInComBoundary, InitComDesignProps, InitComBindProps, GetComTag, IsComInComBoundary  } from "./componentUtility";
 
 let mouse = {};
 let timerHelper = new TimerHeper();
@@ -55,57 +55,15 @@ export default {
   },
   computed: {
     designProps: function(){
-      if(this.cur && this.cur.activeCom){
-
-        let activeCom = this.cur.activeCom;
-        if(activeCom.tagName != 'v-line'){
-          while (activeCom.tagName != 'v-resizable') {
-            activeCom = activeCom.parent;
-          }
-        }
-
-        const arr = [];
-
-        const add = ctx => {
-          if(!ctx || !ctx.designProps || !ctx.designProps.length) return;
-          for (let i = 0; i < ctx.designProps.length; i++) {
-            const p = ctx.designProps[i];
-            arr.push(p);
-          }
-        };
-
-        add(activeCom);
-        add(activeCom.children[0]);
-
-        return arr;
+      if(this.cur.activeCom){
+        return this.cur.activeCom.designProps;
       }
 
       return {};
     },
     bindProps: function(){
-      if(this.cur && this.cur.activeCom){
-
-        let activeCom = this.cur.activeCom;
-        if(activeCom.tagName != 'v-line'){
-          while (activeCom.tagName != 'v-resizable') {
-            activeCom = activeCom.parent;
-          }
-        }
-
-        const arr = [];
-
-        const add = ctx => {
-          if(!ctx || !ctx.bindProps || !ctx.bindProps.length) return;
-          for (let i = 0; i < ctx.bindProps.length; i++) {
-            const p = ctx.bindProps[i];
-            arr.push(p);
-          }
-        };
-
-        add(activeCom);
-        add(activeCom.children[0]);
-
-        return arr;
+      if(this.cur.activeCom){
+        return this.cur.activeCom.bindProps;
       }
       
       const arr = [];
@@ -135,16 +93,10 @@ export default {
 
       // 手动删除组件
       delCom: function(){
-        let activeCom = this.cur.activeCom;
-        if(!activeCom) return;
-        while (activeCom.tagName != 'v-resizable') {
-          activeCom = activeCom.parent;
-        }
-        this.cur = {
-          delComManual: true,
-          activeCom: activeCom
-        };
-        activeCom.delSelf();
+        this.cur.delComManual = true;
+        this.activeVResizables(item => {
+          item.delSelf();
+        });
       },
 
       // 拖拉组件
@@ -166,41 +118,65 @@ export default {
 
       // 鼠标按下
       mouseDown: function(ev) {
-        if(this.cur.activeCom){
-          this.cur.activeCom.active = false;
-        }
-        
-        this.cur = {};
-
         // 鼠标位置
         const mousePos = this.getMouseOffset(ev);
-        
-        // 查找激活组件
-        TreeLoop(this.components, com => {
-            if(com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev)){
-              if(com.exportMouseDown){
-                com.exportMouseDown(mousePos);
-              }
-              com.active =  true;
-              this.cur = {
-                activeCom: com,
-                designProps: com.designProps,
-                bindProps: com.bindProps
-              };
-              mouse = {
-                  dragging: false,
-                  draggingCount: 1,
-                  orgX: ev.x,
-                  orgY: ev.y
-              };
 
+        // 记录鼠标信息
+        mouse = {
+            dragging: false,
+            draggingCount: 1,
+            leftButtonPress: true,
+            orgX: ev.x,
+            orgY: ev.y
+        };
+
+        // 查找当前激活组件
+        let activeCom = null;
+        TreeLoop(this.components, com => {
+            if(com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev, 2)){
+              activeCom = com;
               return false; // break;
             }
         }, true);
 
-        const { activeCom } = this.cur;
+        if(activeCom){
+          // 有激活控件
+          // 判断当前激活控件是不是之前的一员
+          const preActiveComs = [ ...(this.cur.activeComs||[]), this.cur.activeCom ];
+          if(preActiveComs.indexOf(activeCom) == -1){
+            // 不是
+            // 将之前激活的所有控件取消掉
+            this.activeVResizables(item => item.active = false);
+            // 重置当前选中
+            this.cur = { activeCom: activeCom };
+          }else{
+            // 是
+            // 变更当前选中
+            this.cur.activeCom = activeCom;
+          }
+
+          // 处理固定逻辑
+          if(activeCom.exportMouseDown) activeCom.exportMouseDown(mousePos);
+          this.showComBorder(activeCom);
+        }
+        else{
+          // 没有激活控件
+          // 将之前激活的所有控件取消掉
+           this.activeVResizables(item => item.active = false);
+
+          // 重置当前选中
+          this.cur = {};
+        }
+
+        // 聚焦框
+        if(!activeCom && !this.drawLineMode){
+          // 重新定位
+          const vfocus = this.$refs.vfocus;
+          vfocus.moveTo(mousePos);
+        }
+
+        // 画线
         if(this.drawLineMode && activeCom && activeCom.draggingDot){
-          // 画线模式
           const vline = this.$refs.vline;
           if(vline.isSourceSet()){
             vline.saveDest(activeCom.draggingDot);
@@ -215,10 +191,6 @@ export default {
           }
         }
 
-        if(!activeCom){
-
-        }
-
         this.emitSelChanged();
       },
 
@@ -227,43 +199,75 @@ export default {
         // 鼠标位置
         const mousePos = this.getMouseOffset(ev);
 
-        // 显示元素边界
-        TreeLoop(this.components, com => {
-          if(com.hasOwnProperty("showBorder")){
-            const preShowBorder = com.showBorder;
-            com.showBorder = com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev);
-            if(com.mouseHoverShape != undefined){
-              if(!preShowBorder && com.showBorder){
-                // mouse-enter
-                this.setMouseShape(com.mouseHoverShape);
-              }
-              else if(preShowBorder && !com.showBorder){
-                // mouseLeave
-                this.setMouseShape("");
+        const vfocus = this.$refs.vfocus;
+        if(vfocus.isSet()){
+          // 聚焦框模式
+
+          // 改变聚焦框位置
+          vfocus.lineTo(mousePos);
+
+          // 显示元素边界
+          TreeLoop(this.components, com => {
+            if(com.tagName != 'v-line' && com.hasOwnProperty("showBorder")){
+              const preShowBorder = com.showBorder;
+              com.showBorder = IsComInComBoundary(vfocus, com);
+              return true;
+            }
+          })
+        }
+        else{
+          // 普通鼠标移动模式
+
+          // 显示元素边界
+          TreeLoop(this.components, com => {
+            if(com.hasOwnProperty("showBorder")){
+              const preShowBorder = com.showBorder;
+              com.showBorder = com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev, 2);
+              // 设置鼠标的形状
+              if(com.mouseHoverShape != undefined){
+                if(!preShowBorder && com.showBorder){
+                  // mouse-enter
+                  this.setMouseShape(com.mouseHoverShape);
+                }
+                else if(preShowBorder && !com.showBorder){
+                  // mouseLeave
+                  this.setMouseShape("");
+                }
               }
             }
-          }
-        });
-
-        if(this.drawLineMode){
-          // 画线模式
-          const vline = this.$refs.vline;
-          if(vline.isSourceSet()){
-              vline.lineTo(mousePos);
-          }
+          })
         }
 
         // 拖拉缩放....
-        const { activeCom } = this.cur;
-        if(activeCom && mouse){
+        const activeCom = this.cur.activeCom;
+        if(mouse.leftButtonPress && activeCom){
+          
           const ox = ev.x - mouse.orgX;
           const oy = ev.y - mouse.orgY;
           if(!(ox >= 5 || oy >= 5 || ox <= -5 || oy <= -5)) return;
 
           mouse.dragging = true;
+          const isMoving = activeCom.isMoving;
+          const isResizing = activeCom.isResizing;
 
-          if(activeCom.draggingBegin && mouse.draggingCount++ == 1){
-              if(activeCom.isMoving){
+          const activeComs = this.cur.activeComs;
+          if(activeComs){
+            // 多个控件移动
+            if(!this.cur.activeComRect) this.cur.activeComRect = {};
+            for (let i = 0; i < activeComs.length; i++) {
+              const com = activeComs[i];
+              if(!this.cur.activeComRect[com.id]){
+                const comRect = com.getRect();
+                const { l: orgX, t: orgY, w: orgW, h: orgH } = comRect;
+                this.cur.activeComRect[com.id] = { orgX, orgY, orgW, orgH };
+              }
+              com.moveSelf(this.cur.activeComRect[com.id], { ox, oy });
+            }
+          }
+          else{
+            // 单个控件移动
+            if(activeCom.draggingBegin && mouse.draggingCount++ == 1){
+                if(isMoving){
                     // 在拖动的时候，改变当前元素的父节点，之后再还原
                     const childEl = activeCom.$el;
                     const oldParentEl = childEl.parentNode;
@@ -272,32 +276,37 @@ export default {
                       oldParentEl.appendChild(childEl);
                     };
 
+                    // 获取activeCom相对于this控件的边界信息(l,t,w,h)
                     const rect = this.getChildRect(activeCom);
                     this.cur.activeComRect = rect; 
                     activeCom.setPosition(rect.l, rect.t);
                     newParentEl.appendChild(childEl);
-              }
-              if(activeCom.isResizing){
-                this.cur.activeComRect = activeCom.getRect();
-              }
-              activeCom.draggingBegin();
-          }
+                }
+                if(isResizing){
+                  // 获取activeCom相对于父控件的边界信息(l,t,w,h)
+                  this.cur.activeComRect = activeCom.getRect();
+                }
+                activeCom.draggingBegin();
+            }
 
-          if(activeCom.draggingHandler){
-            const { l: orgX, t: orgY, w: orgW, h: orgH } = this.cur.activeComRect || {};
-            activeCom.draggingHandler({ orgX, orgY, orgW, orgH }, { ox, oy })
+            if(activeCom.draggingHandler){
+              const { l: orgX, t: orgY, w: orgW, h: orgH } = this.cur.activeComRect || {};
+              activeCom.draggingHandler({ orgX, orgY, orgW, orgH }, { ox, oy })
+            }
+          }
+        }
+
+        // 画线模式
+        if(this.drawLineMode){
+          const vline = this.$refs.vline;
+          if(vline.isSourceSet()){
+              vline.lineTo(mousePos);
           }
         }
       },
 
       // 鼠标弹起
       mouseUp: function(ev) {
-        if(this.drawLineMode && ev.button == 2){
-            // 取消画线
-            const vline = this.$refs.vline;
-            vline.reset();
-        }
-
         if(mouse.dragging){
             // 拖拉缩放....结束
             const { activeCom, activeComReset } = this.cur;
@@ -317,6 +326,7 @@ export default {
               let container = null;
               let beforeChild = null;
 
+              // 判断是否嵌入了容器内
               TreeLoopSkip(this.components, activeCom, com => {
                 if(com.tagName == "v-row" || com.tagName == "v-col"){
                   if(com.showBorder){
@@ -335,26 +345,74 @@ export default {
                 }
               }, true)
 
-
-              if(nowInContainer){
-                  // 嵌入容器内
-                  activeCom.setPosition(0, 0);
-
-                  // 移动节点
-                  TreeMoveItem(this.components, container, activeCom, beforeChild);
+              const activeComs = this.cur.activeComs;
+              if(activeComs){
+                // 多个控件
+                if(nowInContainer){
+                    // 嵌入容器内
+                    for (let i = 0; i < activeComs.length; i++) {
+                      const com = activeComs[i];
+                      // 重置位置
+                      com.setPosition(0, 0);
+                      // 移动节点
+                      TreeMoveItem(this.components, container, com, beforeChild);
+                    }
+                }
+                else if(preInContainer){
+                    // 移出来了
+                    for (let i = 0; i < activeComs.length; i++) {
+                      const com = activeComs[i];
+                      // 移动节点
+                      TreeMoveItem(this.components, null, com);
+                    }
+                }
               }
-              else if(preInContainer){
-                  // 移出来了
-
-                  // 移动节点
-                  TreeMoveItem(this.components, null, activeCom);
+              else{
+                // 单个控件
+                if(nowInContainer){
+                    // 嵌入容器内
+                    // 重置位置
+                    activeCom.setPosition(0, 0);
+                    // 移动节点
+                    TreeMoveItem(this.components, container, activeCom, beforeChild);
+                }
+                else if(preInContainer){
+                    // 移出来了
+                    // 移动节点
+                    TreeMoveItem(this.components, null, activeCom);
+                }
               }
             }
 
             this.emitTplChanged();
         }
 
+        // 聚焦框
+        const vfocus = this.$refs.vfocus;
+        if(vfocus.isSet()){
+          // 将聚焦框内部的控件设为激活控件
+          const arr = [];
+          TreeLoop(this.components, com => {
+            if(com.hasOwnProperty("showBorder") && com.showBorder){
+              // 都在聚焦框内的控件
+              com.active = true;
+              arr.push(com);
+            }
+          });
+          this.cur.activeComs = arr;
+        }
+        // 取消聚焦框
+        vfocus.reset();
+
+        // 清空鼠标信息
         mouse = {};
+
+        // 画线模式
+        if(this.drawLineMode && ev.button == 2){
+            // 取消画线
+            const vline = this.$refs.vline;
+            vline.reset();
+        }
       },
 
       // 通过名称获取组件
@@ -392,7 +450,7 @@ export default {
       },
 
       // 获取子控件的矩形大小
-      getChildRect(item, offset){
+      getChildRect(item){
         const containerRect = this.$el.getBoundingClientRect();
         const childRect = item.$el.getBoundingClientRect();
         return { 
@@ -473,6 +531,33 @@ export default {
           if(key == name) return;
         }
         this.$set(this.dynamicProps, name, null);
+      },
+
+      // 显示控件的边框
+      showComBorder: function(com){
+        this.findVResizable(com).active = true;
+      },
+
+      // 查找v-resizable
+      findVResizable: function(com){
+        let rtn = com;
+        if(rtn.tagName == 'v-line') return rtn;
+        while(rtn.tagName != 'v-resizable'){
+          rtn = rtn.parent;
+        }
+        return rtn;
+      },
+
+      // 激活的v-resizable
+      activeVResizables: function(loop){
+        if(this.cur.activeComs){
+          for (let i = 0; i < this.cur.activeComs.length; i++) {
+            loop(this.findVResizable(this.cur.activeComs[i]));
+          }
+        }
+        if(this.cur.activeCom){
+          loop(this.findVResizable(this.cur.activeCom));
+        }
       }
   },
   mounted: function() {
