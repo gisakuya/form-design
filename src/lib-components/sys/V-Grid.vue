@@ -1,0 +1,122 @@
+<template>
+    <table class="v-grid" :style="selftStyle" >
+        <tr v-for="i in rows" :key="i">
+            <td v-for="j in cols" :key="j" :style="cellStyle"></td>
+        </tr>
+    </table>
+</template>
+
+<script>
+import CommonMixin from "./componentMixin"
+
+export default {
+    data: function(){
+        return {
+            wrap: false,
+            rows: [],
+            cols: []
+        }
+    },
+    designProps: [
+        {
+            title: '唯一标识',
+            name: 'id',
+            get: function(){
+                return this.id;
+            },
+            set: function(val){
+                if(!val) return;
+                if(!this.isComponentIdVaild(val)){
+                    alert("该标志已被占用!");
+                }
+                else{
+                    this.id = val;
+                }
+            },
+            init: function(val){
+                this.id = val;
+            }
+        },
+        {
+            title: '内容换行',
+            name: 'wrap',
+            enum: [
+                { title: '是', value: true },
+                { title: '否', value: false }
+            ]
+        },
+        {
+            title: '水平对齐',
+            name: 'align',
+            enum: [
+                { title: '左', value: 'flex-start' },
+                { title: '中', value: 'center' },
+                { title: '右', value: 'flex-end' },
+                { title: '两端', value: 'space-between' },
+                { title: '等间距', value: 'space-around' }
+            ]
+        },
+        {
+            title: '垂直对齐',
+            name: 'valign',
+            enum: [
+                { title: '上', value: 'flex-start' },
+                { title: '中', value: 'center' },
+                { title: '下', value: 'flex-end' },
+                { title: '拉伸', value: 'stretch' },
+                { title: '基线', value: 'baseline' }
+            ]
+        },
+        {
+            title: '行',
+            name: 'rows',
+            default: [1,2],
+            get: function(){
+                return this.rows.join(',');
+            },
+            set: function(val){
+                if(!val) return;
+                this.rows = val instanceof Array ? val : val.split(',') 
+            }
+        },
+        {
+            title: '列',
+            name: 'cols',
+            default: [1,2],
+            get: function(){
+                return this.cols.join(',');
+            },
+            set: function(val){
+                if(!val) return;
+                this.cols = val instanceof Array ? val : val.split(',') 
+            }
+        },
+    ],
+    computed: {
+        selftStyle: function(){
+            return {
+            }
+        },
+        cellStyle: function(){
+            return {
+                borderColor:  this.isShowBorder ? 'red' : null
+            }
+        }
+    },
+    mixins: [ CommonMixin ]
+}
+</script>
+
+<style lang="less">
+    .v-grid {
+        border-collapse:collapse;
+        min-width: 200px;
+        min-height: 200px;
+        width: 100%;
+        height: 100%;
+
+        & td {
+            border: 1px lightgray dashed;
+        }
+    }
+</style>

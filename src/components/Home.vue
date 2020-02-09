@@ -110,6 +110,7 @@ export default {
           title: '容器', icon: 'el-icon-s-grid', submenus: [
             { title: '行', componentName: 'v-row' },
             { title: '列', componentName: 'v-col' },
+            { title: '网格', componentName: 'v-grid' }
           ]
         },
         { title: '逆变器', icon: 'el-icon-setting', submenus: [ 

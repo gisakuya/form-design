@@ -133,7 +133,7 @@ export default {
         // 查找当前激活组件
         let activeCom = null;
         TreeLoop(this.components, com => {
-            if(com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev, 2)){
+            if(com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev, 3)){
               activeCom = com;
               return false; // break;
             }
@@ -222,7 +222,7 @@ export default {
           TreeLoop(this.components, com => {
             if(com.hasOwnProperty("showBorder")){
               const preShowBorder = com.showBorder;
-              com.showBorder = com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev, 2);
+              com.showBorder = com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev, 3);
               // 设置鼠标的形状
               if(com.mouseHoverShape != undefined){
                 if(!preShowBorder && com.showBorder){
