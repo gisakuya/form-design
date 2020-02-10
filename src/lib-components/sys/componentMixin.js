@@ -22,6 +22,8 @@ export default {
             flexGrow: null,
             flexShrink: null,
 
+            slot: null,
+
             designProps: [],
             bindProps: []
         }

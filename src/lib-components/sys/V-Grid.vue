@@ -1,7 +1,10 @@
 <template>
-    <table class="v-grid" :style="selftStyle" >
-        <tr v-for="i in rows" :key="i">
-            <td v-for="j in cols" :key="j" :style="cellStyle"></td>
+    <table class="v-grid" :style="selftStyle">
+        <tr v-for="(row, i) in rows" :key="i" :style="{ height: row }">
+            <td ref="cells" :name="`${i},${j}`" v-for="(col, j) in cols" :key="j" 
+                :style="{ borderColor: cellBorder, width: col }">
+                <slot :name="`${i},${j}`"></slot>
+            </td>
         </tr>
     </table>
 </template>
@@ -70,7 +73,7 @@ export default {
         {
             title: '行',
             name: 'rows',
-            default: [1,2],
+            default: ["50%","50%"],
             get: function(){
                 return this.rows.join(',');
             },
@@ -82,7 +85,7 @@ export default {
         {
             title: '列',
             name: 'cols',
-            default: [1,2],
+            default: ["50%","50%"],
             get: function(){
                 return this.cols.join(',');
             },
@@ -92,15 +95,29 @@ export default {
             }
         },
     ],
+    methods: {
+        itemMoveIn: function(item, { x, y }){
+            const cells = this.$refs.cells;
+            if(cells){
+                for (let i = 0; i < cells.length; i++) {
+                    const cell = cells[i];
+                    const rect = cell.getBoundingClientRect();
+                    if(rect.left <= x && x <= rect.right &&
+                        rect.top <= y && y <= rect.bottom){
+                        item.slot = cell.getAttribute("name");
+                        return;
+                    }
+                }
+            }
+        }
+    },
     computed: {
         selftStyle: function(){
             return {
             }
         },
-        cellStyle: function(){
-            return {
-                borderColor:  this.isShowBorder ? 'red' : null
-            }
+        cellBorder: function(){
+            return this.isShowBorder ? 'red' : null;
         }
     },
     mixins: [ CommonMixin ]
@@ -117,6 +134,10 @@ export default {
 
         & td {
             border: 1px lightgray dashed;
+
+            & > * {
+                position: relative !important;
+            }
         }
     }
 </style>

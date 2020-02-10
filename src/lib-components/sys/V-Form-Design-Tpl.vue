@@ -31,6 +31,7 @@ function DealComDef(ctx, com, index){
         _designProps: { id: com.id, ...(com.designProps || {}) },
         _bindProps: com.bindProps || {},
         _bindAttrs: com.bindAttrs || {},
+        _slot: com.slot
     };
 
     const props = {};
@@ -62,7 +63,8 @@ function DealComDef(ctx, com, index){
         domProps: domProps,
         props: props,
         on: handlers,
-        children: children
+        children: children,
+        slot: com.slot
     }
 }
 

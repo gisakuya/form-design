@@ -55,6 +55,10 @@ export function GetComExportTpl(ctx){
         rtn.bindAttrs = expBindAttrs;
     }
 
+    if(ctx.slot){
+        rtn.slot = ctx.slot;
+    }
+
     return rtn;
 }
 
@@ -69,6 +73,12 @@ export function IsPointInComBoundary(ctx, { x, y }, offset){
         b += offset;
     }
     return l <= x && x <= r && t <= y && y <= b;
+}
+
+// 获取鼠标点在控件内的位置
+export function GetMousePositionInCom(ev, com){
+    const rect = com.$el.getBoundingClientRect();
+    return { x: ev.x - rect.left, y: ev.y - rect.top };
 }
 
 // 判断子控件是否在父控件的范围内
@@ -123,6 +133,12 @@ export function InitComDesignProps(ctx, emitTplChanged){
       ctx.designProps = arr;
       delete ctx.$el._designProps;
 
+      // 额外处理下slot
+      if(ctx.$el._slot){
+          ctx.slot = ctx.$el._slot;
+          delete ctx.$el._slot;
+      }
+
       ctx.hasInitDesignProps = true;
 }
 
@@ -137,7 +153,7 @@ function arrPush(arr, prop){
     arr.splice(i, 0, prop);
 }
 
-  // 初始化组件的BindProps
+// 初始化组件的BindProps
 export function InitComBindProps(ctx, emitTplChanged){
     if(!ctx) return;
     if(ctx.hasInitBindProps) return;
@@ -225,6 +241,7 @@ export function InitComBindProps(ctx, emitTplChanged){
     ctx.hasInitBindProps = true;
 }
 
+// 获取组件的标签
 export function GetComTag(com) {
     return com.$options._componentTag;
 }

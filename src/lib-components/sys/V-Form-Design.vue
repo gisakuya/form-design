@@ -320,7 +320,8 @@ export default {
 
             if(activeCom.tagName == "v-resizable"){
               // 只对v-resiable处理
-              let preInContainer = activeCom.parent ? (activeCom.parent.tagName == "v-row" || activeCom.parent.tagName == "v-col") : false;
+              const parentTag = activeCom.parent ? activeCom.parent.tagName : null;
+              let preInContainer = parentTag == "v-row" || parentTag == "v-col" || parentTag == "v-grid";
               let nowInContainer = false;
 
               let container = null;
@@ -328,7 +329,7 @@ export default {
 
               // 判断是否嵌入了容器内
               TreeLoopSkip(this.components, activeCom, com => {
-                if(com.tagName == "v-row" || com.tagName == "v-col"){
+                if(com.tagName == "v-row" || com.tagName == "v-col" || com.tagName == "v-grid"){
                   if(com.showBorder){
                     // 嵌入容器内
                     container = com;
@@ -356,6 +357,10 @@ export default {
                       com.setPosition(0, 0);
                       // 移动节点
                       TreeMoveItem(this.components, container, com, beforeChild);
+                      // 通知container有child移入
+                      if(container.itemMoveIn){
+                        container.itemMoveIn(com, ev);
+                      }
                     }
                 }
                 else if(preInContainer){
@@ -375,6 +380,10 @@ export default {
                     activeCom.setPosition(0, 0);
                     // 移动节点
                     TreeMoveItem(this.components, container, activeCom, beforeChild);
+                    // 通知container有child移入
+                    if(container.itemMoveIn){
+                      container.itemMoveIn(activeCom, ev);
+                    }
                 }
                 else if(preInContainer){
                     // 移出来了
@@ -450,9 +459,9 @@ export default {
       },
 
       // 获取子控件的矩形大小
-      getChildRect(item){
+      getChildRect(child){
         const containerRect = this.$el.getBoundingClientRect();
-        const childRect = item.$el.getBoundingClientRect();
+        const childRect = child.$el.getBoundingClientRect();
         return { 
           l: childRect.left - containerRect.left,
           t: childRect.top - containerRect.top,
@@ -598,7 +607,8 @@ export default {
                   }else{
                     parent.children.push(item);
                   }
-                  if(item.tagName != "v-row" && item.tagName != "v-col" && parent.tagName == "v-resizable"){
+                  if(item.tagName != "v-row" && item.tagName != "v-col"  && item.tagName != "v-grid"
+                      && parent.tagName == "v-resizable"){
                       return true;                    
                   }
                 }
