@@ -1,7 +1,7 @@
 <template>
     <table class="v-grid" :style="selftStyle">
-        <tr v-for="(row, i) in rows" :key="i" :style="{ height: row }">
-            <td ref="cells" :name="`${i},${j}`" v-for="(col, j) in cols" :key="j" 
+        <tr v-for="(row, i) in cRows" :key="i" :style="{ height: row }">
+            <td ref="cells" :name="`${i},${j}`" v-for="(col, j) in cCols" :key="j" 
                 :style="{ borderColor: cellBorder, width: col }">
                 <slot :name="`${i},${j}`"></slot>
             </td>
@@ -16,9 +16,17 @@ export default {
     data: function(){
         return {
             wrap: false,
-            rows: [],
-            cols: []
         }
+    },
+    props: {
+        rows: {
+            type: String,
+            default: "50%,50%"
+        },
+        cols: {
+            type: String,
+            default: "50%,50%"
+        },
     },
     designProps: [
         {
@@ -70,30 +78,6 @@ export default {
                 { title: '基线', value: 'baseline' }
             ]
         },
-        {
-            title: '行',
-            name: 'rows',
-            default: ["50%","50%"],
-            get: function(){
-                return this.rows.join(',');
-            },
-            set: function(val){
-                if(!val) return;
-                this.rows = val instanceof Array ? val : val.split(',') 
-            }
-        },
-        {
-            title: '列',
-            name: 'cols',
-            default: ["50%","50%"],
-            get: function(){
-                return this.cols.join(',');
-            },
-            set: function(val){
-                if(!val) return;
-                this.cols = val instanceof Array ? val : val.split(',') 
-            }
-        },
     ],
     methods: {
         itemMoveIn: function(item, { x, y }){
@@ -118,6 +102,12 @@ export default {
         },
         cellBorder: function(){
             return this.isShowBorder ? 'red' : null;
+        },
+        cRows: function(){
+            return this.rows ? this.rows.split(',') : []
+        },
+        cCols: function(){
+            return this.cols ? this.cols.split(',') : []
         }
     },
     mixins: [ CommonMixin ]
