@@ -154,7 +154,7 @@ function arrPush(arr, prop){
 }
 
 // 初始化组件的BindProps
-export function InitComBindProps(ctx, emitTplChanged){
+export function InitComBindProps(ctx, emitTplChanged, extraProps){
     if(!ctx) return;
     if(ctx.hasInitBindProps) return;
 
@@ -207,7 +207,7 @@ export function InitComBindProps(ctx, emitTplChanged){
 
     let arr = [];
     // 处理_bindProps
-    const props = ctx.$options.props;
+    const props = Object.assign({}, ctx.$options.props, extraProps);
     if(props){
         for (const key in props) {
             const prop = props[key];

@@ -12,6 +12,7 @@
         <p>动态属性：{{dynamicProps}}</p>
         <v-line-simple ref="vline"></v-line-simple>
         <v-focus-rect ref="vfocus"></v-focus-rect>
+        <v-contextmenu ref="vctxmenu"></v-contextmenu>
         <v-form-design-tpl :template="tpl.components">
         </v-form-design-tpl>
 
@@ -54,6 +55,7 @@ export default {
         }
       }, 
       drawLineMode: Boolean,
+      editableComs: Array
   },
   computed: {
     designProps: function(){
@@ -184,7 +186,7 @@ export default {
         // 查找当前激活组件
         let activeCom = null;
         TreeLoop(this.components, com => {
-            if(com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev, 3)){
+            if(com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev)){
               activeCom = com;
               return false; // break;
             }
@@ -273,7 +275,7 @@ export default {
           TreeLoop(this.components, com => {
             if(com.hasOwnProperty("showBorder")){
               const preShowBorder = com.showBorder;
-              com.showBorder = com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev, 3);
+              com.showBorder = com.isPointInBoundary ? com.isPointInBoundary(mousePos) : IsPointInComBoundary(com, ev);
               // 设置鼠标的形状
               if(com.mouseHoverShape != undefined){
                 if(!preShowBorder && com.showBorder){
@@ -643,8 +645,8 @@ export default {
             // 子组件已显示
             let vueComs = [];
 
-            // 跳过v-line-simple控件和v-focus-rect控件
-            for (let i = 2; i < this.$children.length; i++) {
+            // 跳过不必要的控件
+            for (let i = 3; i < this.$children.length; i++) {
               vueComs.push(this.$children[i]);
             }
 
@@ -670,9 +672,14 @@ export default {
             this.components = vueComs;
 
             // 初始化
+            const editableComs = this.editableComs||[];
             TreeLoop(vueComs, item=>{
+                const extraProps = {};
+                if(editableComs.indexOf(item.tagName) != -1){
+                  extraProps.contentText = {};
+                }
                 InitComDesignProps(item, this.emitTplChanged); // 初始化DesignProps
-                InitComBindProps(item, this.emitTplChanged); // 初始化BindProps
+                InitComBindProps(item, this.emitTplChanged, extraProps); // 初始化BindProps
             })
         })
     }

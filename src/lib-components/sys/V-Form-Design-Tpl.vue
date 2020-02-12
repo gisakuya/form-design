@@ -16,6 +16,8 @@ function GetRealValue(ctx, valueExp){
 }
 
 function DealComDef(ctx, com, index){
+    if(typeof com == "string") return com;
+
     const _this = ctx.parent;
 
     let children = [];
@@ -36,6 +38,10 @@ function DealComDef(ctx, com, index){
 
     const props = {};
     for (const key in domProps._bindProps) {
+        if(key == "contentText"){
+            children = [ domProps._bindProps[key] ];
+            continue;
+        }
         const valueExp = domProps._bindProps[key];
         const { realValue } = GetRealValue(ctx, valueExp);
         props[key] = realValue;
@@ -83,6 +89,8 @@ function PreDealTemplate(ctx, components){
 }
 
 function CreateCom(h, parent){
+    if(typeof parent == "string") return parent;
+
     let children = [];
     
     if(parent.children){
@@ -102,7 +110,6 @@ function CreateCom(h, parent){
         on: parent.on,
         nativeOn: parent.nativeOn,
         directives: parent.directives,
-        scopedSlots: parent.scopedSlots,
         slot: parent.slot,
         key: parent.key,
         ref: parent.ref,

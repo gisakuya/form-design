@@ -21,6 +21,7 @@
       <el-main>
           <v-form-design ref="formDesign" style="position:relative; height: 500px;" 
               :drawLineMode="drawLineMode"
+              :editableComs="editableComs"
               v-model="tpl"
               @selChanged="selChanged"
           >
@@ -105,6 +106,7 @@ export default {
           { title: '标签', componentName: 'v-label' },
           { title: '文本框', componentName: 'el-input'  },
           { title: '日期选择器', componentName: 'el-date-picker'  },
+          { title: '按钮', componentName: 'el-button'  },
         ] },
         {
           title: '容器', icon: 'el-icon-s-grid', submenus: [
@@ -123,7 +125,8 @@ export default {
       activeCom: null,
       designProps: [],
       bindProps: {},
-      tpl: { components: [] }
+      tpl: { components: [] },
+      editableComs: [ 'el-button' ]
     }
   },
   methods: {
