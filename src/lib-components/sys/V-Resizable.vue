@@ -36,7 +36,7 @@
 </template>
 
 <script>
-import { QuZheng, GetStyleValue } from "./utility"
+import { QuZheng, GetStyleValue, GetStylePadding } from "./utility"
 import CommonMixin from "./componentMixin"
 
 export default {
@@ -117,6 +117,30 @@ export default {
                 { title: '中', value: 'center' },
                 { title: '右', value: 'right' }
             ]
+        },
+        {
+            title: '垂直对齐',
+            name: 'valign',
+            enum: [
+                { title: '上', value: 'flex-start' },
+                { title: '中', value: 'center' },
+                { title: '下', value: 'flex-end' },
+                { title: '基线', value: 'baseline' },
+                { title: '拉伸', value: 'stretch' }
+            ],
+            visiblieOnTags: [ 'v-row', 'v-col' ]
+        },
+        {
+            title: '内边距',
+            name: 'padding',
+            tooltip: '上 右 下 左',
+            default: 5
+        },
+        {
+            title: '外边距',
+            name: 'margin',
+            tooltip: '上 右 下 左',
+            default: 0
         },
         {
             title: '放大比例',
@@ -282,8 +306,11 @@ export default {
                 top: GetStyleValue(this.y),
                 width: GetStyleValue(this.w),
                 height: GetStyleValue(this.h),
+                padding: GetStylePadding(this.padding),
+                margin: GetStylePadding(this.margin),
                 flexGrow: this.flexGrow,
-                flexShrink: this.flexShrink
+                flexShrink: this.flexShrink,
+                alignSelf: this.valign
             };
         },
         isShowBorder: function(){
@@ -301,7 +328,6 @@ export default {
     .v-resiable {
         display: block;
         position: absolute;
-        padding: 5px;
         border: 2px solid #9ed0fa;
         z-index: 98;
 

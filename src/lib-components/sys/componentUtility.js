@@ -38,9 +38,9 @@ export function GetComExportTpl(ctx){
       }
     }
 
-    let rtn = {
-        tag: tag,
-        id: id
+    let rtn = { tag: tag };
+    if(id){
+        rtn.id = id;
     }
 
     if(Object.keys(expDesignProps).length){
@@ -244,4 +244,14 @@ export function InitComBindProps(ctx, emitTplChanged){
 // 获取组件的标签
 export function GetComTag(com) {
     return com.$options._componentTag;
+}
+
+// 将位置偏移一下
+export function PostionOffset(pos, offset){
+    if(!pos) return;
+    if(!offset) return pos;
+    const tmp = pos.split(',');
+    let x = +tmp[0] + offset;
+    let y = +tmp[1] + offset;
+    return `${x},${y}`;    
 }

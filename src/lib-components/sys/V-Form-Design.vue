@@ -5,7 +5,9 @@
         @mousedown="mouseDown"
         @mousemove="mouseMove"
         @mouseup="mouseUp"
-        @keyup.46="delCom" tabindex="0">
+        @keyup.46="delCom"
+        @keyup.ctrl.exact="copyCom"
+        tabindex="0">
 
         <p>动态属性：{{dynamicProps}}</p>
         <v-line-simple ref="vline"></v-line-simple>
@@ -18,7 +20,7 @@
 
 <script>
 import { TimerHeper, TreeLoop, TreeLoopSkip, TreeFindSingle, TreeFindCollect, TreeDelItem, TreeMoveItem } from "./utility";
-import { GetComExportTpl, IsPointInComBoundary, InitComDesignProps, InitComBindProps, GetComTag, IsComInComBoundary  } from "./componentUtility";
+import { GetComExportTpl, IsPointInComBoundary, InitComDesignProps, InitComBindProps, GetComTag, IsComInComBoundary, PostionOffset  } from "./componentUtility";
 
 let mouse = {};
 let timerHelper = new TimerHeper();
@@ -62,6 +64,7 @@ export default {
         const arr = [];
         for (let i = 0; i < props.length; i++) {
           const prop = props[i];
+          if(prop.name == "id") continue;
           if(!prop.visiblieOnTags || prop.visiblieOnTags.indexOf(parentTag) != -1){
             arr.push(prop);
           }
@@ -88,6 +91,44 @@ export default {
     }
   },
   methods: {
+      // 复制控件
+      copyCom: function(){
+        const names = [];
+        const copys = [];
+        const orgComponents = this.tpl.components;
+
+        this.activeVResizables(com=>{
+          const copy = this.exportChildrenTpl([com], obj=>{
+            if(obj.id){
+              // 将Id重新命名
+              obj.id = this.createNewComponentId(obj.tag, id=>{
+                return this.isComponentIdVaild(id) && names.indexOf(id) == -1;
+              });
+              if(obj.designProps && obj.designProps.pos){
+                // 将位置偏移一下
+                obj.designProps.pos = PostionOffset(obj.designProps.pos, 10)
+              }
+              names.push(obj.id);
+            }
+          })[0];
+          if(com.parent){
+            TreeLoop(orgComponents, (item, parent)=>{
+              if(item.id == com.id){
+                parent.children.push(copy);
+                return false;
+              }
+            });
+          }
+          else{
+            orgComponents.push(copy);
+          }
+          copys.push(copy);
+        });
+
+        console.log(copys);
+        if(copys.length) this.emitTplChanged(orgComponents);
+      },
+
       // 组件删除时
       onComponentDeleted: function(com){
         TreeDelItem(this.components, com);
@@ -440,14 +481,15 @@ export default {
       },
 
       // 创建组件名称
-      createNewComponentId: function(comType){
+      createNewComponentId: function(comType, idValidFnt){
+        idValidFnt = idValidFnt || this.isComponentIdVaild;
         comType = comType.toLowerCase().replace("-", "");
         let index = 1;
         let comName = null;
         do{
           comName = `${comType}${index++}`
         }
-        while(!this.isComponentIdVaild(comName))
+        while(!idValidFnt(comName))
         return comName;
       },
 
@@ -486,7 +528,7 @@ export default {
       },
 
       // 获取子集合的tpl
-      exportChildrenTpl: function(){
+      exportChildrenTpl: function(coms = this.components, iterator = null){
         let rtn = [];
 
         const helper = (tree, arr)=>{
@@ -494,6 +536,7 @@ export default {
           for (let i = 0; i < tree.length; i++) {
             const node = tree[i];
             let obj = GetComExportTpl(node);
+            if(iterator) iterator(obj);
             if(node.children && node.children.length){
               helper(node.children, (obj.children = []));
             }
@@ -501,7 +544,7 @@ export default {
           }
         };
 
-        helper(this.components, rtn);
+        helper(coms, rtn);
 
         return rtn;
       },
@@ -530,7 +573,7 @@ export default {
           designProps: { pos: `${x},${y}` },
           children: [ { 
             tag: childComponent,
-            id: this.createNewComponentId(childComponent),
+            // id: this.createNewComponentId(childComponent),
           } ]
         }
       },

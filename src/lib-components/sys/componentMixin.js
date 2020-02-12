@@ -9,6 +9,9 @@ export default {
             y: 0,
             w: 0,
             h: 0,
+            padding: 0,
+            margin:0,
+
             draggingBegin: null,
             draggingHandler: null,
             draggingEnd: null,

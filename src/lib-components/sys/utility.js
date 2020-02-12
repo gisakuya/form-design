@@ -37,6 +37,14 @@ export function GetStyleValue(val){
     return val;
 }
 
+// 获取padding样式
+export function GetStylePadding(val){
+    if(!val || val == "0" || val == "0px") return null;
+    if(typeof val == "number")
+        return val + 'px';
+    return val.replace(/\d+(?!px)/g, "$&px");
+}
+
 // 定时器助手
 export class TimerHeper {
     constructor(){
