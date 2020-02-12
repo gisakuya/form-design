@@ -56,7 +56,17 @@ export default {
   computed: {
     designProps: function(){
       if(this.cur.activeCom){
-        return this.cur.activeCom.designProps;
+        const props = this.cur.activeCom.designProps;
+        if(!props) return {};
+        const parentTag = (this.cur.activeCom.parent||{}).tagName;
+        const arr = [];
+        for (let i = 0; i < props.length; i++) {
+          const prop = props[i];
+          if(!prop.visiblieOnTags || prop.visiblieOnTags.indexOf(parentTag) != -1){
+            arr.push(prop);
+          }
+        }
+        return arr;
       }
 
       return {};

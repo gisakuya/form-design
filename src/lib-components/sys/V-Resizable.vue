@@ -121,12 +121,14 @@ export default {
         {
             title: '放大比例',
             name: 'flexGrow',
-            tooltip: '默认(0)不放大, 占据剩余空间的比例' 
+            tooltip: '默认(0)不放大, 占据剩余空间的比例' ,
+            visiblieOnTags: [ 'v-row', 'v-col' ]
         },
         {
             title: '缩小比例',
             name: 'flexShrink',
-            tooltip: '默认(1)缩小, 占据剩余空间的比例. 0表示不缩小' 
+            tooltip: '默认(1)缩小, 占据剩余空间的比例. 0表示不缩小',
+            visiblieOnTags: [ 'v-row', 'v-col' ] 
         },
     ],
     methods: {
@@ -297,7 +299,7 @@ export default {
     @dotRadius: 5px;
 
     .v-resiable {
-        display: inline-block;
+        display: block;
         position: absolute;
         padding: 5px;
         border: 2px solid #9ed0fa;

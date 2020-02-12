@@ -82,10 +82,10 @@ export default {
     .v-row {
         display: flex;
         flex-direction: row;
-        padding: 5px;
         border: 1px lightgray dashed;
         min-width: 200px;
         min-height: 20px;
+        padding: 5px;
 
         & > * {
             position: relative !important;

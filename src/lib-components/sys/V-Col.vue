@@ -82,10 +82,10 @@ export default {
     .v-col {
         display: flex;
         flex-direction: column;
-        padding: 5px;
         border: 1px lightgray dashed;
         min-width: 20px;
         min-height: 200px;
+        padding: 5px;
 
         & > * {
             position: relative !important;
