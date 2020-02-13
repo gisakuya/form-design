@@ -38,10 +38,6 @@ function DealComDef(ctx, com, index){
 
     const props = {};
     for (const key in domProps._bindProps) {
-        if(key == "contentText"){
-            children = [ domProps._bindProps[key] ];
-            continue;
-        }
         const valueExp = domProps._bindProps[key];
         const { realValue } = GetRealValue(ctx, valueExp);
         props[key] = realValue;

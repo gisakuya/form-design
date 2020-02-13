@@ -54,8 +54,7 @@ export default {
           return  { components: [] }
         }
       }, 
-      drawLineMode: Boolean,
-      editableComs: Array
+      drawLineMode: Boolean
   },
   computed: {
     designProps: function(){
@@ -96,7 +95,6 @@ export default {
       // 复制控件
       copyCom: function(){
         const names = [];
-        const copys = [];
         const orgComponents = this.tpl.components;
 
         this.activeVResizables(com=>{
@@ -124,11 +122,9 @@ export default {
           else{
             orgComponents.push(copy);
           }
-          copys.push(copy);
         });
 
-        console.log(copys);
-        if(copys.length) this.emitTplChanged(orgComponents);
+        if(names.length) this.emitTplChanged(orgComponents);
       },
 
       // 组件删除时
@@ -674,12 +670,8 @@ export default {
             // 初始化
             const editableComs = this.editableComs||[];
             TreeLoop(vueComs, item=>{
-                const extraProps = {};
-                if(editableComs.indexOf(item.tagName) != -1){
-                  extraProps.contentText = {};
-                }
                 InitComDesignProps(item, this.emitTplChanged); // 初始化DesignProps
-                InitComBindProps(item, this.emitTplChanged, extraProps); // 初始化BindProps
+                InitComBindProps(item, this.emitTplChanged); // 初始化BindProps
             })
         })
     }

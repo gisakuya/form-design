@@ -16,12 +16,13 @@
     <el-container>
       <el-header>
         <el-switch v-model="drawLineMode" inactive-text="连线模式"></el-switch>
+        &nbsp;
+        <el-button size="small" @click="copyCom">复制控件</el-button>
       </el-header>
 
       <el-main>
           <v-form-design ref="formDesign" style="position:relative; height: 500px;" 
               :drawLineMode="drawLineMode"
-              :editableComs="editableComs"
               v-model="tpl"
               @selChanged="selChanged"
           >
@@ -125,8 +126,7 @@ export default {
       activeCom: null,
       designProps: [],
       bindProps: {},
-      tpl: { components: [] },
-      editableComs: [ 'el-button' ]
+      tpl: { components: [] }
     }
   },
   methods: {
@@ -140,6 +140,11 @@ export default {
         this.activeCom = com
         this.designProps = designProps
         this.bindProps = bindProps;
+      },
+
+      // 复制控件
+      copyCom: function(){
+        this.$refs.formDesign.copyCom();
       },
 
       // 添加绑定属性
