@@ -1,5 +1,10 @@
 import Vue from 'vue'
+import VueRouter from 'vue-router'
 import App from './App.vue'
+
+// 导入自身组件
+import Home from "./components/Home.vue";
+import HomePreview from "./components/HomePreview.vue";
 
 // 饿了么组件
 import ElementUI from 'element-ui';
@@ -10,6 +15,9 @@ Vue.config.productionTip = false
 // 全局使用
 // https://element.eleme.cn/#/zh-CN/component/quickstart#wan-zheng-yin-ru
 Vue.use(ElementUI);
+
+//https://router.vuejs.org/zh/installation.html#npm
+Vue.use(VueRouter)
 
 // 自动注册组件
 // https://cn.vuejs.org/v2/guide/components-registration.html#基础组件的自动化全局注册
@@ -40,6 +48,18 @@ requireComponent.keys().forEach(fileName => {
   )
 })
 
+// 定义路由
+const routes = [
+  { path: '/', component: Home },
+  { path: '/preview', component: HomePreview }
+]
+
+const router = new VueRouter({
+  mode: 'history',
+  routes // (缩写) 相当于 routes: routes
+})
+
 new Vue({
   render: h => h(App),
+  router: router
 }).$mount('#app')
