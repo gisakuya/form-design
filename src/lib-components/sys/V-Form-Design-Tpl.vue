@@ -1,7 +1,7 @@
 <script>
-import { GetTagModel, DeepCopy, Foreach } from "./utility";
+import { GetTagModel, DeepCopy, Foreach, ObjectGetValue } from "./utility";
 
-const reg = /#([\w.]+)(?:\s*=\s*(.+))?/;
+const reg = /#([\w.\[\]]+)(?:\s*=\s*(.+))?/;
 
 
 function GetRealValue(ctx, valueExp){
@@ -19,20 +19,107 @@ function GetRealValue(ctx, valueExp){
     return { realValue: valueExp, matchName: null };
 }
 
+function DealVIf(ctx, coms){
+    const h = (p, arr) => {
+        const vIf = p.attrs['v-if'];
+        delete p.attrs['v-if'];
+        if(vIf){
+            const { realValue: conditon } = GetRealValue(ctx, vIf);
+            if(!conditon){
+                const index = arr.indexOf(p);
+                arr.splice(index, 1);
+                return;
+            }
+        }
+        
+        Foreach(p.children, c=>{
+            h(c, p.children);
+        })
+    };
+
+    for (let i = 0; i < coms.length; i++) {
+        const com = coms[i];
+        h(coms[i], coms);
+    }
+}
+
+function DealVFor(ctx, coms){
+    const h2 = (p, item, prefix, itemPath) => {
+        Foreach(p.children, c=>{
+            h2(c, item, prefix, itemPath);
+        });
+
+        // 处理props
+        if(p.props){
+            const realProps = {};
+            Foreach(p.props, (propVal, key)=>{
+                if(typeof propVal == 'string' && propVal.startsWith(prefix)){
+                    realProps[key] = ObjectGetValue(item, propVal.substring(prefix.length));
+                }
+            });
+            Object.assign(p.props, realProps);
+        }
+        
+        // 处理attrs
+        if(p.attrs){
+            const realAttrs = {};
+            Foreach(p.attrs, (attrVal, key)=>{
+                if(typeof attrVal == 'string' && attrVal.startsWith(prefix)){
+                    if(key == 'v-model'){
+                        realAttrs[key] = `${itemPath}.${attrVal.substring(prefix.length)}`
+                    }
+                    else{
+                        realAttrs[key] = ObjectGetValue(item, attrVal.substring(prefix.length));
+                    }
+                }
+            });
+            Object.assign(p.attrs, realAttrs);
+        }
+    };
+
+    const h = (p, arr) => {
+        Foreach(p.children, c=>{
+            h(c, p.children);
+        })
+
+        const { realValue: items } = GetRealValue(ctx, p.attrs['v-for']);
+        const vFor = p.attrs['v-for'];
+        const itemKey = p.attrs['v-for-key'];
+        const itemPrefix = p.attrs['v-for-prefix'] || '$';
+        delete p.attrs['v-for'];
+        delete p.attrs['v-for-key'];
+        delete p.attrs['v-for-prefix'];
+        if(!items || !items.length) return;
+
+        const copyArr = items.map((item,i)=>{
+            const copy = DeepCopy(p);
+            delete copy.attrs['v-for'];
+            delete copy.attrs['v-for-key'];
+            delete copy.attrs['v-for-prefix'];
+            copy.id = itemKey ? ObjectGetValue(item, itemKey) : (copy.id + i);
+            h2(copy, item, itemPrefix, `${vFor}[${i}]`);
+            return copy;
+        });
+
+        const index = arr.indexOf(p);
+        arr.splice(index, 1, ...copyArr);
+    };
+
+    for (let i = 0; i < coms.length; i++) {
+        const com = coms[i];
+        h(coms[i], coms);
+    }
+}
+
 function DealComDef(ctx, com){
     if(typeof com == "string") return com;
 
     const _this = ctx.parent;
+    const { designMode } = ctx.props;
 
-    let children = [];
-    if(com.children){
-        for (let i = 0; i < com.children.length; i++) {
-            const child = com.children[i];
-            children.push(DealComDef(ctx, child));
-        }
-    }
+    const children = (com.children||[]).map(x=>DealComDef(ctx, x));
 
-    const domProps = ctx.props.designMode ? { tpl: com } : {};
+    const domProps = designMode ? { tpl: com } : {};
     for (const key in com.domProps) {
         const value = com.domProps[key];
         domProps[key] = value;
@@ -50,11 +137,18 @@ function DealComDef(ctx, com){
     for (const key in com.attrs) {
         const valueExp = com.attrs[key];
         const { realValue, matchName } = GetRealValue(ctx, valueExp);
-        if(key == "v-model" && valueExp && matchName){
-            const { prop = "value", event = "input" } = GetTagModel(com.tag);
-            props[prop] = realValue;
-            handlers[event] = e => {
-                _this.setDynamicProp(matchName, e);
+        if(key == "v-model"){
+            if(valueExp && matchName){
+                const { prop = "value", event = "input" } = GetTagModel(com.tag);
+                props[prop] = realValue || '';
+                handlers[event] = e => {
+                    _this.setDynamicProp(matchName, e);
+                }
+            }
+        }
+        else if(key == 'content'){
+            if(realValue){
+                children.push(realValue);
             }
         }
         else{
@@ -62,7 +156,7 @@ function DealComDef(ctx, com){
         }
     }
 
-    const style = Object.assign({}, com.style, ctx.props.designMode ? com.designStyle : null);
+    const style = Object.assign({}, com.style, designMode ? com.designStyle : null);
 
     return {
         key: com.id,
@@ -78,30 +172,10 @@ function DealComDef(ctx, com){
     }
 }
 
-function PreDealTemplate(ctx, components){
-    if(!components) return;
-
-    const arr = [];
-
-    for (let i = 0; i < components.length; i++) {
-        const com = components[i];
-        arr.push(DealComDef(ctx, com));
-    }
-
-    return arr;
-}
-
-function CreateCom(h, parent, ctx){
+function CreateCom(h, parent){
     if(typeof parent == "string") return parent;
 
-    let children = [];
-    
-    if(parent.children){
-        for (let i = 0; i < parent.children.length; i++) {
-            const child = parent.children[i];
-            children.push(...CreateCom(h, child, ctx));
-        }
-    }
+    const children = (parent.children||[]).map(x=>CreateCom(h, x));
 
     const dataObj = {
         class: parent.class,
@@ -118,65 +192,7 @@ function CreateCom(h, parent, ctx){
         refInFor: parent.refInFor
     };
 
-    if(!ctx.props.designMode){
-        if('v-for' in dataObj.attrs && dataObj.attrs['v-for']){
-            const arr = [];
-            const itemKey = dataObj.attrs['v-for-key'];
-            const items = dataObj.attrs['v-for'];
-            Foreach(items, (item,i)=>{
-                // 处理props
-                const realProps = {};
-                Foreach(dataObj.props, (propVal, key)=>{
-                    if(typeof propVal == 'string' && propVal.startsWith('$')){
-                        realProps[key] = item[propVal.substring(1)]; 
-                    }
-                });
-                const copy = DeepCopy(dataObj);
-                copy.key = itemKey ? item[itemKey] : (copy.key + i);
-                Object.assign(copy.props, realProps);
-                // 处理attrs
-                const realAttrs = {};
-                Foreach(copy.attrs, (attrVal, key)=>{
-                    if(typeof attrVal == 'string' && attrVal.startsWith('$')){
-                        realAttrs[key] = item[attrVal.substring(1)];
-                    }
-                });
-                Object.assign(copy.attrs, realAttrs);
-                // 处理content
-                copy.content = copy.attrs['content'];
-                // 删除处理过的attr
-                delete copy.attrs['v-for'];
-                delete copy.attrs['v-for-key'];
-                delete copy.attrs['content'];
-                delete copy.attrs['v-model'];
-                arr.push(copy);
-            });
-            return arr.map(x=> {
-                const newchildren = x.content ? [ ...children, x.content ] : children;
-                return h(parent.tag, x, newchildren)
-            });
-        }
-    }
-
-    if('v-if' in dataObj.attrs){
-        const conditon = dataObj.attrs['v-if'];
-        if(!conditon){
-            return [];
-        }
-        delete dataObj.attrs['v-if'];
-    }
-
-    if('v-model' in dataObj.attrs){
-        delete dataObj.attrs['v-model'];
-    }
-
-    if('content' in dataObj.attrs){
-        const content = dataObj.attrs['content'];
-        children = [ content ];
-        delete dataObj.attrs['content'];
-    }
-
-    return [h(parent.tag, dataObj, children)];
+    return h(parent.tag, dataObj, children);
 }
 
 export default {
@@ -196,14 +212,17 @@ export default {
 
         console.log('tpl render');
 
-        const comDefs = PreDealTemplate(ctx, template);
+        const { props: { designMode } } = ctx;
 
-        let vNodes = [];
+        const copy = designMode ? template : DeepCopy(template);
 
-        for (let i = 0; i < comDefs.length; i++) {
-            const comDef = comDefs[i];
-            vNodes.push(...CreateCom(h, comDef, ctx));
+        if(!designMode){
+            DealVIf(ctx, copy);
+            DealVFor(ctx, copy);
         }
+
+        const dealComs = copy.map(x=> DealComDef(ctx, x));
+        const vNodes = dealComs.map(x=> CreateCom(h, x));
 
         if(defaultSlot){
             vNodes.push(...defaultSlot);

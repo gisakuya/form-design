@@ -261,7 +261,9 @@ export function DeepCopy(obj){
     return DeepCopyCore(obj);
 }
 function DeepCopyCore(obj){
-    if(typeof obj != 'object') return obj;
+    const objType = typeof obj;
+    if(obj == null || obj == undefined || 
+       objType == 'string' || objType == 'number' || objType == 'boolean') return obj;
     const copy = {};
     for (const key in obj) {
         const prop = obj[key];
@@ -299,7 +301,7 @@ function ForeachArray(arr, iter){
     if(arr && arr.length){
         for (let i = 0; i < arr.length; i++) {
             const item = arr[i];
-            iter(item, i);
+            iter(item, i, arr);
         }
     }
 }
@@ -307,7 +309,7 @@ function ForeachObj(arr, iter){
     if(arr){
         for (const key in arr) {
             const item = arr[key];
-            iter(item, key);
+            iter(item, key, arr);
         }
     }
 }
@@ -375,35 +377,51 @@ export function AddChild(obj, child, childrenField = 'children'){
 }
 
 // 设置对象增的属性值
+// 支持a.b.c 或者 a.b[0].c的用法
 export function ObjectSetValue(obj, prop, val, setMethod = (o,p,v)=> o[p] = v){
     let parent = obj;
     const names = prop.split('.');
+    const reg = /(\w+)(?:\[(\d+)\])?/;
     for (let i = 0; i < names.length; i++) {
-        const name = names[i];
+        const tmp = reg.exec(names[i]);
+        const name = tmp[1];
+        const index = tmp[2] ? parseInt(tmp[2]) : null;
         if(i == names.length - 1){
-            setMethod(parent, name, val);
+            if(index == null){
+              setMethod(parent, name, val);
+            }
+            else{
+              setMethod(parent, name, []);
+              setMethod(parent[name], index, val);
+            }
         }else{
             if(!parent[name]){
-                setMethod(parent, name, {});
+                setMethod(parent, name, index == null ? {} : []);
             }
-            parent = parent[name];
+            parent = index == null ? parent[name] : parent[name][index];
         }
     }
 }
 
 // 获取对象的属性值
+// 支持a.b.c 或者 a.b[0].c的用法
 export function ObjectGetValue(obj, prop){
     let parent = obj;
     const names = prop.split('.');
+    const reg = /(\w+)(?:\[(\d+)\])?/;
     for (let i = 0; i < names.length; i++) {
-        const name = names[i];
+        const tmp = reg.exec(names[i]);
+        const name = tmp[1];
+        const index = tmp[2] ? parseInt(tmp[2]) : null;
+        const val = parent[name];
         if(i == names.length - 1){
-            return parent[name];
+            return index == null ? val : val[index];
         }else{
-            if(!parent[name]){
+            if(!val){
                 return null;
             }
-            parent = parent[name];
+            parent = index == null ? val : val[index];
+            if(!parent) return null;
         }
     }
 }
@@ -412,15 +430,18 @@ export function ObjectGetValue(obj, prop){
 export function IsKeyExists(obj, key){
     let parent = obj;
     const names = key.split('.');
+    const reg = /(\w+)(?:\[(\d+)\])?/;
     for (let i = 0; i < names.length; i++) {
-        const name = names[i];
+        const tmp = reg.exec(names[i]);
+        const name = tmp[1];
+        const index = tmp[2] ? parseInt(tmp[2]) : null;
         if(i == names.length - 1){
             return typeof parent == 'object' ? (name in parent) : false;
         }else{
             if(!parent[name]){
                 return false;
             }
-            parent = parent[name];
+            parent = index == null ? parent[name] : parent[name][index];
         }
     }
 }

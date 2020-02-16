@@ -95,7 +95,7 @@ export default {
       menus: [
         { title: '基本控件', icon: 'el-icon-bell', submenus: [
           { title: '标签', componentName: 'v-label', attrs: {
-            'v-if': true
+            'v-if': null
           }},
           { title: '文本框', componentName: 'el-input', attrs: { 
             'v-model': null,
@@ -147,7 +147,7 @@ export default {
           { title: '表单项', componentName: 'el-form-item', designStyle: { 
             minHeight: "20px", border: "1px dashed lightgreen" 
           }},
-        ] },
+        ]},
         {
           title: '容器', icon: 'el-icon-s-grid', submenus: [
             { title: '行', componentName: 'el-row', designStyle: { 
@@ -156,6 +156,11 @@ export default {
             { title: '列', componentName: 'el-col', designStyle: { 
               minHeight: "20px", border: "1px dashed green" 
             }},
+            {title: 'DIV', componentName: 'v-div', designStyle: { 
+              minHeight: "20px", border: "1px dashed lightblue" 
+              }, attrs: {
+                'v-for': null
+            }}
             // { title: '行', componentName: 'v-row' },
             // { title: '列', componentName: 'v-col' },
             // { title: '网格', componentName: 'v-grid' }
