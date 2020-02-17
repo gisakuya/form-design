@@ -22,7 +22,7 @@
 
 <script>
 import { 
-  TreeLoop, TreeLoopMap, TreeDelItem, TreeCopyItem, LetterbaseArrPush, AddChild,
+  TreeLoop, TreeLoopMap, TreeDelItem, TreeCopyItem, LetterbaseArrPush, ObjectAddChild,
   StyleStrToObj, StyleObjToStr,
   TypeParse, ValToString,
   ObjectSetValue,ObjectGetValue,IsKeyExists
@@ -128,7 +128,7 @@ export default {
         if(!data) return;
         ev.preventDefault();
 
-        let { componentName, content, designStyle, attrs } = JSON.parse(data);
+        let { componentName, content, designStyle, attrs, events } = JSON.parse(data);
 
         if(content){
           if(!attrs) attrs = {};
@@ -142,6 +142,9 @@ export default {
         }
         if(attrs){
           childComTpl.attrs = attrs;
+        }
+        if(events){
+          childComTpl.events = events;
         }
 
         if(parentCom){
@@ -215,7 +218,7 @@ export default {
       // 发送事件
       emitSelChanged: function(){
         const com = this.cur.activeCom || {};
-        this.$emit("selChanged", { id: com._id, tag: com._tag, props: com.props });
+        this.$emit("selChanged", { id: com._id, tag: com._tag, props: com.props, events: com.events });
       },
 
       // 组件树变化
@@ -329,7 +332,7 @@ export default {
             com._tag = tpl.tag;
             com._tpl = tpl;
             com.addChild = c => {
-              AddChild(tpl, c);
+              ObjectAddChild(tpl, c);
             };
             com.del = () => {
               TreeDelItem(this.tpl.components, tpl);
@@ -439,6 +442,43 @@ export default {
             const style = tpl.style;
             LetterbaseArrPush(props, addStyle(style));
             com.props = props;
+
+            const events = [];
+            const addEvent = (name, value)=>{
+                let obj = {
+                    title: name,
+                    name: name,
+                    value: value
+                };
+                obj.get = () => ValToString(obj.value);
+                obj.set = (val) => {
+                    obj.value = val;
+                    // 通知
+                    if(!obj.value){
+                      if(tpl.events){
+                        delete tpl.events[obj.name];
+                        if(Object.keys(tpl.events) == 0){
+                          delete tpl.events;
+                        }
+                      }
+                    }
+                    else{
+                      if(!tpl.events) tpl.events = {};
+                      tpl.events[obj.name] = obj.value;
+                    }
+                    this.emitTplChanged();
+                };
+                return obj;
+            }
+            const eventDefs = tpl.events;
+            if(eventDefs){
+              for (const key in eventDefs) {
+                  const name = key;
+                  const value = eventDefs[key];
+                  LetterbaseArrPush(events, addEvent(name, value))
+              }
+            }
+            com.events = events;
 
             tpl.getCom = ()=> com; 
 

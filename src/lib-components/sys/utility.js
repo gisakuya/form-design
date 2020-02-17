@@ -253,14 +253,14 @@ export function LetterbaseArrPush(arr, prop){
 }
 
 // 深度拷贝对象
-export function DeepCopy(obj){
+export function DeepCopy(obj, iter){
     if(!obj) return obj;
     if(obj instanceof Array){
-        return obj.map(x=>DeepCopyCore(x));
+        return obj.map(x=>DeepCopyCore(x, iter));
     }
-    return DeepCopyCore(obj);
+    return DeepCopyCore(obj, iter);
 }
-function DeepCopyCore(obj){
+function DeepCopyCore(obj, iter){
     const objType = typeof obj;
     if(obj == null || obj == undefined || 
        objType == 'string' || objType == 'number' || objType == 'boolean') return obj;
@@ -270,10 +270,10 @@ function DeepCopyCore(obj){
         const propType = typeof prop;
         if(propType  == 'object'){
             if(prop instanceof Array){
-                copy[key] = prop.map(x=> DeepCopyCore(x));
+                copy[key] = prop.map(x=> DeepCopyCore(x, iter));
             }
             else{
-                copy[key] = DeepCopyCore(prop);
+                copy[key] = DeepCopyCore(prop, iter);
             }
         }
         else if(propType == 'function'){
@@ -283,6 +283,7 @@ function DeepCopyCore(obj){
             copy[key] = prop;
         }
     }
+    if(iter) iter(copy);
     return copy;
 }
 
@@ -371,9 +372,19 @@ export function ValToString(val){
 }
 
 // 添加子元素
-export function AddChild(obj, child, childrenField = 'children'){
+export function ObjectAddChild(obj, child, childrenField = 'children'){
     if(!obj[childrenField]) obj[childrenField] = [];
     obj[childrenField].push(child);
+}
+
+// 添加子元素
+export function ArrayAddChild(arr, child){
+    if(child instanceof Array){
+        arr.push(...child);
+    }
+    else{
+        arr.push(child);
+    }
 }
 
 // 设置对象增的属性值

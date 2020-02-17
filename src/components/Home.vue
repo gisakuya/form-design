@@ -44,31 +44,9 @@
         {{ activeCom.tag }}
       </div>
       <el-menu :default-openeds="['0','1']">
-          <!-- <el-submenu index="0">
+          <el-submenu index="0">
             <template slot="title">
-              <i class="el-icon-edit"></i> 设计属性
-            </template>
-            <li>
-            <table>
-              <tr v-for="prop in designProps" :key="prop.title">
-                <td style="width:80px;"><span style="margin-left:5px;font-size:14px">{{ prop.title }}</span></td>
-                <td>
-                    <el-select v-if="prop.enum" v-model="prop.model" clearable>
-                      <el-option v-for="o in prop.enum" :key="o.value" :label="o.title" :value="o.value"></el-option>
-                    </el-select>
-                    <input v-else class="el-input__inner"
-                      :title="prop.tooltip"
-                      :value="prop.get()" 
-                      :readonly="prop.readonly"
-                      @change="prop.set($event.target.value)"/>
-                  </td>
-              </tr>
-            </table>
-            </li>
-          </el-submenu> -->
-          <el-submenu index="1">
-            <template slot="title">
-              <i class="el-icon-edit"></i> 内置属性
+              <i class="el-icon-edit"></i> 属性
             </template>
             <li>
             <table>
@@ -78,6 +56,23 @@
                     <input class="el-input__inner" 
                         :value="prop.get()" 
                         @change="prop.set($event.target.value)" />
+                </td>
+              </tr>
+            </table>
+            </li>
+          </el-submenu>
+          <el-submenu index="1">
+            <template slot="title">
+              <i class="el-icon-edit"></i> 事件
+            </template>
+            <li>
+            <table>
+              <tr v-for="event in activeCom.events" :key="event.title">
+                <td style="width:80px;"><span style="margin-left:5px;font-size:14px">{{ event.title }}</span></td>
+                <td>
+                    <input class="el-input__inner" 
+                        :value="event.get()" 
+                        @change="event.set($event.target.value)" />
                 </td>
               </tr>
             </table>
@@ -137,7 +132,9 @@ export default {
           }, attrs: { 
             'v-model': null,
           }},
-          { title: '按钮', componentName: 'el-button', content: '默认按钮' },
+          { title: '按钮', componentName: 'el-button', content: '默认按钮', events: {
+            click: null
+          }},
           { title: '按钮组', componentName: 'el-button-group', designStyle: { 
             minWidth: "100%", minHeight: "20px", border: "1px dashed lightblue" 
           }},
