@@ -31,7 +31,15 @@ function H2(p, item, prefix, itemPath){
         const realProps = {};
         Foreach(p.props, (propVal, key)=>{
             if(typeof propVal == 'string' && propVal.startsWith(prefix)){
-                realProps[key] = ObjectGetValue(item, propVal.substring(prefix.length));
+                const subVal = propVal.substring(prefix.length);
+                if(subVal == ''){
+                }
+                else if(subVal == prefix){
+                    realProps[key] = item;
+                }
+                else{
+                    realProps[key] = ObjectGetValue(item, subVal);
+                }
             }
         });
         Object.assign(p.props, realProps);
@@ -42,11 +50,26 @@ function H2(p, item, prefix, itemPath){
         const realAttrs = {};
         Foreach(p.attrs, (attrVal, key)=>{
             if(typeof attrVal == 'string' && attrVal.startsWith(prefix)){
+                const subVal = attrVal.substring(prefix.length);
                 if(key == 'v-model'){
-                    realAttrs[key] = `${itemPath}.${attrVal.substring(prefix.length)}`
+                    if(subVal == ''){
+                    }
+                    else if(subVal == prefix){
+                        realAttrs[key] = `${itemPath}`;
+                    }
+                    else{
+                        realAttrs[key] = `${itemPath}.${subVal}`;
+                    }
                 }
                 else{
-                    realAttrs[key] = ObjectGetValue(item, attrVal.substring(prefix.length));
+                    if(subVal == ''){
+                    }
+                    else if(subVal == prefix){
+                        realProps[key] = item;
+                    }
+                    else{
+                        realProps[key] = ObjectGetValue(item, subVal);
+                    }
                 }
             }
         });
@@ -198,8 +221,7 @@ export default {
             vNodes.push(...defaultSlot);
         }
 
-        const dt2 = new Date();
-
+        // const dt2 = new Date();
         // console.log('总共--------------：', dt2 - dt1);
 
         return h("div", vNodes);
