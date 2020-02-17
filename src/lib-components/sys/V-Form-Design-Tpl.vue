@@ -5,7 +5,7 @@ const reg = /#([\w.\[\]]+)(?:\s*=\s*(.+))?/;
 
 const logReg = /(?<!\.)log\(/;
 
-function ConvertBodyScript(body){
+function ConvertEventBodyScript(body){
     if(!body) return body;
     return body.replace(logReg, "console.log(");
 }
@@ -104,6 +104,8 @@ function H1(ctx, com, h){
 
     const attrs = {};
     const handlers = {};
+    let ref = null;
+    let slot = null;
     if(com.attrs){
         for (const key in com.attrs) {
             const valueExp = com.attrs[key];
@@ -122,6 +124,12 @@ function H1(ctx, com, h){
                     children.push(realValue);
                 }
             }
+            else if(key == 'ref'){
+                ref = realValue;
+            }
+            else if(key == 'slot'){
+                slot = realValue;
+            }
             else{
                 attrs[key] = realValue;
             }
@@ -130,7 +138,7 @@ function H1(ctx, com, h){
 
     if(com.events){
         for (const key in com.events) {
-            const body = ConvertBodyScript(com.events[key]);
+            const body = ConvertEventBodyScript(com.events[key]);
             handlers[key] = ()=>{
                 new Function(body).call(_this);
             };
@@ -147,8 +155,8 @@ function H1(ctx, com, h){
         props: props,
         attrs: attrs,
         on: handlers,
-        slot: com.slot,
-        ref: com.ref,
+        slot: slot,
+        ref: ref,
         refInFor: com.refInFor
     };
 

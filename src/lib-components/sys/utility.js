@@ -219,10 +219,46 @@ export function TreeInserItem(tree, parent, child, beforeChild){
 }
 
 // 添加新元素到树上的某个节点
-export function TreeMoveItem(tree, parent, child, beforeChild){
-    if(child == beforeChild) return;
-    TreeDelItem(tree, child);
-    TreeInserItem(tree, parent, child, beforeChild);
+export function TreeMoveItem(tree, srcId, destId, type){
+    if(srcId == destId) return;
+    let src = null;
+    let dest = null;
+    let srcC = null;
+    let destC = null;
+    TreeLoop(tree, (n,p)=>{
+        if(n.id == srcId){
+            src = n;
+            srcC = p ? p.children : tree;
+        }
+        else if(n.id == destId){
+            dest = n;
+            destC = p ? p.children : tree;
+        }
+        if(src != null && dest != null) return false;
+    });
+
+    if(src == null || dest == null) return;
+
+    const rmvSrc = ()=>{
+        const srcIdx = srcC.indexOf(src);
+        srcC.splice(srcIdx, 1);
+    };
+
+    if(type == 'before'){
+        rmvSrc();
+        const destIdx = destC.indexOf(dest);
+        destC.splice(destIdx, 0, src);
+    }
+    else if(type == 'after'){
+        rmvSrc();
+        const destIdx = destC.indexOf(dest);
+        destC.splice(destIdx+1, 0, src);
+    }
+    else if(type == 'inner'){
+        rmvSrc();
+        if(!dest.children) dest.children = [];
+        dest.children.push(src);
+    }
 }
 
 // 复制树里某个节点

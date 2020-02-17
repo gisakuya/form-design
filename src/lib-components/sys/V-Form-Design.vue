@@ -22,7 +22,8 @@
 
 <script>
 import { 
-  TreeLoop, TreeLoopMap, TreeDelItem, TreeCopyItem, LetterbaseArrPush, ObjectAddChild,
+  TreeLoop, TreeLoopMap, TreeDelItem, TreeCopyItem, TreeMoveItem,
+  LetterbaseArrPush, ObjectAddChild,
   StyleStrToObj, StyleObjToStr,
   TypeParse, ValToString,
   ObjectSetValue,ObjectGetValue,IsKeyExists
@@ -97,6 +98,13 @@ export default {
               };
             }
         });
+      },
+
+      // 移动树节点
+      treeMove: function(source, dest, type){
+        TreeMoveItem(this.tpl.components, source, dest, type);
+        this.emitTplChanged();
+        this.emitComsTreeChanged();
       },
 
       // 复制控件

@@ -22,6 +22,8 @@
                   :expand-on-click-node="false" 
                   @node-click="treeNodeClick"
                   :render-content="renderContent"
+                  draggable
+                  @node-drop="treeNodeDrop"
             >
           </el-tree>
         </div>
@@ -140,6 +142,8 @@ export default {
           }},
           { title: '表单', componentName: 'el-form', designStyle: { 
             minHeight: "100px", border: "1px dashed lightblue" 
+          },attrs: {
+            'ref': null,
           }},
           { title: '表单项', componentName: 'el-form-item', designStyle: { 
             minHeight: "20px", border: "1px dashed lightgreen" 
@@ -175,6 +179,11 @@ export default {
     }
   },
   methods: {
+      // 树节点的拖拉
+      treeNodeDrop(draggingNode, dropNode, dropType, ev) {
+        this.$refs.formDesign.treeMove(draggingNode.data.id, dropNode.data.id, dropType);
+      },
+
       // 拖拉组件
       drag: function(ev, item) {
         ev.dataTransfer.setData("drag-component", JSON.stringify({
