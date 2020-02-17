@@ -181,10 +181,10 @@ function CreateCom(ctx, com, h){
                 const forItemPath = `${vFor}[${i}]`;
                 const copy = DeepCopy(com, c => H2(c, forItem, forPrefix, forItemPath));
                 copy.id = forKey ? ObjectGetValue(forItem, forKey) : `${copy.id}${i}`;
-                copyArr.push(H1(ctx, copy, h));
                 delete copy.attrs['v-for'];
                 delete copy.attrs['v-for-prefix'];
                 delete copy.attrs['v-for-key'];
+                copyArr.push(H1(ctx, copy, h));
             }
             return copyArr;
         }
