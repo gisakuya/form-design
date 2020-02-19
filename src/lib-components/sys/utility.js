@@ -351,6 +351,11 @@ function ForeachObj(arr, iter){
     }
 }
 
+// LooseJsonParse
+export function LooseJsonParse(obj){
+    return Function('"use strict";return (' + obj + ')')();
+}
+
 // 类型转换
 export function TypeParse(types, val){
     if(typeof val != "string"){
@@ -379,11 +384,10 @@ export function TypeParse(types, val){
         else if(expectType == Boolean){
             return (val == "true");
         }
-        else if(expectType == Array){
-            return JSON.parse("[" + val + "]");
-        }
-        else if(expectType == Object){
-            return JSON.parse(val);
+        else if(expectType == Object || expectType == Array){
+            const fval = val.replace(/(?<!["'])\w+(?!=\1)\s*(?=:)/g, '"$&"')
+                            .replace(/'/g, '"');
+            return JSON.parse(fval);
         }
     }
 
@@ -397,12 +401,7 @@ export function ValToString(val){
     if(valType == 'string') return val;
     if(valType == 'number' || valType == 'boolean') return String(val);
     if(valType == 'object'){
-        if(val instanceof Array){
-             return val.join(',');
-        }
-        else{
-            return JSON.stringify(val);
-        }
+        return JSON.stringify(val);
     }
     throw '无法处理';
 }

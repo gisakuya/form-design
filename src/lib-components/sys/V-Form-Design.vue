@@ -219,14 +219,29 @@ export default {
       },
 
       // 发送事件
-      emitTplChanged: function(components){
-          this.$emit("tplChanged", { components: components||[ ...this.tpl.components ] });
+      emitTplChanged: function(components, mixin){
+          this.$emit("tplChanged", { mixin: mixin, components: components||[ ...this.tpl.components ] });
       },
 
       // 发送事件
       emitSelChanged: function(){
-        const com = this.cur.activeCom || {};
-        this.$emit("selChanged", { id: com._id, tag: com._tag, props: com.props, events: com.events });
+        if(this.cur.activeCom){
+          const com = this.cur.activeCom;
+          this.$emit("selChanged", { id: com._id, tag: com._tag, props: com.props, events: com.events });
+        }
+        else{
+          const props = [];
+          props.push({
+            title: 'mixin',
+            name: 'mixin',
+            get: () => this.tpl.mixin,
+            set: val => {
+              this.emitTplChanged(null, val);
+            }
+          })
+          const events = [];
+          this.$emit("selChanged", { id: 0, tag: 'form-design', props: props, events: events });
+        }
       },
 
       // 组件树变化
@@ -428,6 +443,27 @@ export default {
                 };
                 return obj;
             }
+            const addClass = (value)=>{
+                let obj = {
+                    title: 'class',
+                    name: 'class',
+                    value: value
+                };
+                obj.get = () => obj.value;
+                obj.set = (val) => {
+                    obj.value = val;
+                    // 通知
+                    if(!obj.value){
+                      delete tpl.class;
+                    }
+                    else{
+                      tpl.class = obj.value;
+                    }
+                    this.emitTplChanged();
+                };
+                return obj;
+            }
+            
             const propDefs = com.$options.props;
             if(propDefs){
               for (const key in propDefs) {
@@ -439,6 +475,7 @@ export default {
                   LetterbaseArrPush(props, addProp(name, value, defValue, type));
               }
             }
+            
             const attrs = tpl.attrs;
             if(attrs){
               for (const key in attrs) {
@@ -447,8 +484,17 @@ export default {
                 LetterbaseArrPush(props, addAttr(name, value))
               }
             }
+            props.addAttr = (name, val) => {
+                const newAttr = addAttr(name, val);
+                LetterbaseArrPush(props, newAttr);
+                newAttr.set(val);
+            };
+
             const style = tpl.style;
             LetterbaseArrPush(props, addStyle(style));
+            
+            const cls = tpl.class;
+            LetterbaseArrPush(props, addClass(cls));
             com.props = props;
 
             const events = [];

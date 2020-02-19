@@ -3,11 +3,9 @@ import { GetTagModel, DeepCopy, Foreach, ObjectGetValue, ArrayAddChild } from ".
 
 const reg = /#([\w.\[\]]+)(?:\s*=\s*(.+))?/;
 
-const logReg = /(?<!\.)log\(/;
-
 function ConvertEventBodyScript(body){
     if(!body) return body;
-    return body.replace(logReg, "console.log(");
+    return body.replace(/\blog\(/, "console.log(");
 }
 
 function GetRealValue(ctx, valueExp){
@@ -110,12 +108,26 @@ function H1(ctx, com, h){
         for (const key in com.attrs) {
             const valueExp = com.attrs[key];
             const { realValue, matchName } = GetRealValue(ctx, valueExp);
-            if(key == "v-model"){
+            if(key.startsWith("v-model")){
                 if(valueExp && matchName){
-                    const { prop = "value", event = "input" } = GetTagModel(com.tag);
+                    const modifiers = key.substring(7);
+                    const numberMod = modifiers.indexOf('.number') != -1;
+                    const trimMod = modifiers.indexOf('.trim') != -1;
+                    const lazyMode = modifiers.indexOf('.lazy') != -1;
+
+                    let { prop = "value", event = "input" } = GetTagModel(com.tag);
+                    if(lazyMode){ event = "change"; }
                     props[prop] = realValue;
                     handlers[event] = e => {
-                        _this.setDynamicProp(matchName, e);
+                        let val = e;
+                        if(numberMod){
+                            val = parseFloat(e);
+                            if(isNaN(val)) val = e;
+                        }
+                        if(trimMod){
+                            val = e.trim();
+                        }
+                        _this.setDynamicProp(matchName, val);
                     }
                 }
             }
@@ -139,8 +151,9 @@ function H1(ctx, com, h){
     if(com.events){
         for (const key in com.events) {
             const body = ConvertEventBodyScript(com.events[key]);
+            const fnt = new Function(body);
             handlers[key] = ()=>{
-                new Function(body).call(_this);
+                fnt.call(_this);
             };
         }
     }

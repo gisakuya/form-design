@@ -12,7 +12,7 @@
 
 <script>
 import { 
-  ObjectSetValue,ObjectGetValue,IsKeyExists
+  ObjectSetValue,ObjectGetValue,IsKeyExists,LooseJsonParse
 } from "./utility";
 
 export default {
@@ -65,6 +65,19 @@ export default {
   mounted: function() {
   },
   watch: {
+    tpl: function(){
+      console.log('tpl changed');
+      if(this.tpl.mixin){
+        const mixinstr = this.tpl.mixin.replace(/\b(?<=this\.)\w[\w.]+\s*/g, function(m){
+          return m.endsWith('(') ? m : 'dynamicProps.'+m;
+        });
+        let mixin = LooseJsonParse(mixinstr);
+        let data = mixin.data.call(this);
+        let methods = mixin.methods;
+        this.dynamicProps = Object.assign({}, this.dynamicProps, data);
+        Object.assign(this, methods);
+      }
+    }
   }
 }
 </script>

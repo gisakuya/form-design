@@ -60,6 +60,19 @@
                         @change="prop.set($event.target.value)" />
                 </td>
               </tr>
+              <tr>
+                  <td style="width:80px;">
+                    <input class="el-input__inner" ref="a_name" placeholder="name" />
+                  </td>
+                  <td>
+                      <input class="el-input__inner" ref="a_val" placeholder="value" />
+                  </td>
+              </tr>
+              <tr>
+                <td colspan="2">
+                      <el-button @click="addBindProp($refs.a_name, $refs.a_val);">添加</el-button>
+                </td>
+              </tr>
             </table>
             </li>
           </el-submenu>
@@ -91,48 +104,20 @@ export default {
     return {
       menus: [
         { title: '基本控件', icon: 'el-icon-bell', submenus: [
-          { title: '标签', componentName: 'v-label', attrs: {
-            'v-if': null
-          }},
-          { title: '文本框', componentName: 'el-input', attrs: { 
-            'v-model': null,
-            'placeholder': null
-          }},
-          { title: '日期选择器', componentName: 'el-date-picker', attrs: { 
-            'v-model': null,
-          }},
-          { title: '时间选择器', componentName: 'el-time-picker', attrs: { 
-            'v-model': null,
-          }},
-          { title: '下拉', componentName: 'el-select', attrs: { 
-            'v-model': null
-          }},
-          { title: '下拉选项', componentName: 'el-option', attrs: {
-            'v-for': null,
-            'v-for-key': null, 
-          }},
-          { title: '开关', componentName: 'el-switch', attrs: { 
-            'v-model': null,
-          }},
-          { title: '单选', componentName: 'el-radio', content: '选项1', attrs: {
-            'v-model': null,
-            'v-for': null,
-            'v-for-key': null, 
-          }},
+          { title: '标签', componentName: 'v-label'},
+          { title: '文本框', componentName: 'el-input'},
+          { title: '日期选择器', componentName: 'el-date-picker'},
+          { title: '时间选择器', componentName: 'el-time-picker'},
+          { title: '下拉', componentName: 'el-select'},
+          { title: '下拉选项', componentName: 'el-option'},
+          { title: '开关', componentName: 'el-switch'},
+          { title: '单选', componentName: 'el-radio', content: '选项1'},
           { title: '单选组', componentName: 'el-radio-group', designStyle: { 
             minWidth: "100%", minHeight: "20px", border: "1px dashed lightblue" 
-          }, attrs: { 
-            'v-model': null,
           }},
-          { title: '多选', componentName: 'el-checkbox', content: '选项1', attrs: {
-            'v-model': null,
-            'v-for': null,
-            'v-for-key': null, 
-          }},
+          { title: '多选', componentName: 'el-checkbox', content: '选项1'},
           { title: '多选组', componentName: 'el-checkbox-group', designStyle: { 
             minWidth: "100%", minHeight: "20px", border: "1px dashed lightblue" 
-          }, attrs: { 
-            'v-model': null,
           }},
           { title: '按钮', componentName: 'el-button', content: '默认按钮', events: {
             click: null
@@ -142,8 +127,6 @@ export default {
           }},
           { title: '表单', componentName: 'el-form', designStyle: { 
             minHeight: "100px", border: "1px dashed lightblue" 
-          },attrs: {
-            'ref': null,
           }},
           { title: '表单项', componentName: 'el-form-item', designStyle: { 
             minHeight: "20px", border: "1px dashed lightgreen" 
@@ -230,7 +213,14 @@ export default {
               <el-button size="mini" type="text" on-click={ () => data.delete() }>删除</el-button>
             </span>
           </span>);
-      }
+      },
+
+      // 添加绑定属性
+      addBindProp: function(nameEl, valEl){
+        this.activeCom.props.addAttr(nameEl.value, valEl.value);
+        nameEl.value = "";
+        valEl.value = "";
+      },
   },
   mounted: function(){
   },
