@@ -1,6 +1,9 @@
 <template>
   <div class="v-toolborder" :style="selfStyle">
       <!-- <div class="title">{{ com ? com._tag : '' }}</div> -->
+      <!-- <div v-if="showTools" class="move">
+          <img src="./imgs/move.svg" width="15" height="15"/>
+      </div> -->
       <div v-if="showTools" class="del">
           <img src="./imgs/trash.svg" width="15" height="15" title="删除" @mousedown.stop="del" />
           <img src="./imgs/copy.svg" width="15" height="15" title="复制" @mousedown.stop="copy" />
@@ -89,5 +92,15 @@ export default {
                 float: right;
             }
         }
+
+        // & > .move {
+        //     position: absolute;
+        //     left: 0px;
+        //     top: 0px;
+        //     width: 16px;
+        //     height: 16px;
+        //     background: white;
+        //     cursor: move;
+        // }
     }
 </style>

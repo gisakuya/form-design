@@ -15,8 +15,10 @@
         </p>
         <v-focus-rect ref="vfocus"></v-focus-rect>
         <v-contextmenu ref="vctxmenu"></v-contextmenu>
-        <v-toolborder ref="showBorder" @copy="copyCom" @del="delCom"></v-toolborder>
+        <v-toolborder ref="showBorder" @copy="copyCom" @del="delCom" 
+          draggable @dragstart.native="moveCom"></v-toolborder>
         <v-toolborder ref="activeBorder" :showTools="false" :zIndex="98"></v-toolborder>
+        <v-split-line ref="splitLine"></v-split-line>
         <v-form-design-tpl :template="tpl.components" :designMode="true"></v-form-design-tpl>
     </div>
 </template>
@@ -63,7 +65,7 @@ export default {
   methods: {
       // 所有控件
       allComs: function(iter, reverse = false){
-        const coms = this.$children.filter((_,i)=>i>3);
+        const coms = this.$children.filter((_,i)=>i>4);
         TreeLoop(coms, iter, reverse, "$children");
       },
 
@@ -126,12 +128,70 @@ export default {
         this.emitComsTreeChanged();
       },
 
+      // 移动组件
+      moveCom: function(e){
+        // 移除拖曳图片
+        // https://stackoverflow.com/a/49535378
+        const img = new Image();
+        img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
+        e.dataTransfer.setDragImage(img, 0, 0);
+        this.cur.movingCom = this.cur.activeCom;
+      },
+
       // 拖拉组件
       allowDrop: function(ev) {
-        ev.preventDefault();
-        this.showComBorder(ev);
+        if(this.cur.movingCom){
+          this.allowDropMovingCom(ev)
+        }
+        else{
+          this.allowDropNewComponent(ev);
+        }
+      },
+      // 移动控件
+      allowDropMovingCom: function(ev){
+          const splitLine = this.$refs.splitLine;
+          const { com, dir } = this.getComNearMouse(ev);
+          // console.log(dir, com._id);
+          if(dir == 'inner' && com == this.cur.movingCom){
+              splitLine.hide();
+          }
+          else{
+              if(dir == 'inner'){
+                splitLine.moveInner(com);
+              }
+              else{
+                splitLine.moveAfter(com);
+              }
+              ev.preventDefault();
+          }
+      },
+      // 拖曳新控件
+      allowDropNewComponent: function(ev){
+          ev.preventDefault();
+          this.showComBorder(ev);
       },
       drop: function(ev) {
+        if(this.cur.movingCom){
+          this.dropMovingCom(ev);
+        }
+        else{
+          this.dropNewComponent(ev);
+        }
+      },
+      // 投放移动的控件
+      dropMovingCom: function(ev){
+          const splitLine = this.$refs.splitLine;
+          const srcId = this.cur.movingCom._id;
+          const destId = splitLine.com._id;
+          const dir = splitLine.dir;
+          delete this.cur.movingCom;
+          splitLine.hide();
+          this.activeCom();
+          this.showComBorder();
+          this.treeMove(srcId, destId, dir);
+      },
+      // 投放新控件
+      dropNewComponent:function(ev){
         const data=ev.dataTransfer.getData("drag-component");
         if(!data) return;
         ev.preventDefault();
@@ -295,23 +355,46 @@ export default {
         return rtn;
       },
 
+      // 获取离鼠标最近的com
+      getComNearMouse: function({ x, y }){
+        const com = this.getComUnderMouse({ x, y });
+        const children = com ? com._tpl.children : this.tpl.components;
+        if(children && children.length){
+          let firstChild = null;
+          for (let i = children.length - 1; i > -1; i--) {
+            const child = children[i].getCom();
+            if(!firstChild) firstChild = child;
+            if(child.$el.getBoundingClientRect){
+              const { right, bottom } = child.$el.getBoundingClientRect();
+              if(x >= right){
+                 return { com: child, dir: 'after' };
+              }
+            }
+          }
+          return { com: firstChild, dir: 'after' };
+        }
+        else{
+          return { com: com, dir: 'inner' };
+        }
+      },
+
       // 激活控件
       activeCom: function(ev, comx){
-        const activeBorder = this.$refs.activeBorder;
-        const com = comx || (ev ? this.getComUnderMouse(ev) : null);
-        if(com){
-          activeBorder.activeCom(com);
-        }else{
-          activeBorder.hide();
-        }
-        this.cur.activeCom = com;
-        this.emitSelChanged();
+          const activeBorder = this.$refs.activeBorder;
+          const com = comx || (ev ? this.getComUnderMouse(ev) : null);
+          if(com){
+            activeBorder.activeCom(com);
+          }else{
+            activeBorder.hide();
+          }
+          this.cur.activeCom = com;
+          this.emitSelChanged();
       },
 
       // 显示控件的边框
-      showComBorder: function(ev){
+      showComBorder: function(ev, comx){
         const showBorder = this.$refs.showBorder;
-        const com = this.getComUnderMouse(ev);
+        const com = comx || (ev ? this.getComUnderMouse(ev) : null);
         if(com){
           showBorder.activeCom(com);
         }

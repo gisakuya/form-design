@@ -6,7 +6,7 @@
             <template slot="title">
               <i v-if="menu.icon" :class="menu.icon"></i> {{ menu.title }}
             </template>
-            <el-menu-item v-for="submenu in menu.submenus" :key="submenu.title" draggable="true" @dragstart.native="drag($event, submenu)">
+            <el-menu-item v-for="submenu in menu.submenus" :key="submenu.title" draggable @dragstart.native="drag($event, submenu)">
               {{ submenu.title }}
             </el-menu-item>
           </el-submenu>
