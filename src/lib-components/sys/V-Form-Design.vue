@@ -15,7 +15,8 @@
         </p>
         <v-focus-rect ref="vfocus"></v-focus-rect>
         <v-contextmenu ref="vctxmenu"></v-contextmenu>
-        <v-toolborder ref="vtoolborder" @copy="copyCom" @del="delCom"></v-toolborder>
+        <v-toolborder ref="showBorder" @copy="copyCom" @del="delCom"></v-toolborder>
+        <v-toolborder ref="activeBorder" :showTools="false" :zIndex="98"></v-toolborder>
         <v-form-design-tpl :template="tpl.components" :designMode="true"></v-form-design-tpl>
     </div>
 </template>
@@ -49,6 +50,7 @@ export default {
     }
   },
   props: {
+      dataUrl: String,
       tpl: {
         type: Object,
         default:function(){
@@ -61,7 +63,7 @@ export default {
   methods: {
       // 所有控件
       allComs: function(iter, reverse = false){
-        const coms = this.$children.filter((_,i)=>i>2);
+        const coms = this.$children.filter((_,i)=>i>3);
         TreeLoop(coms, iter, reverse, "$children");
       },
 
@@ -83,8 +85,7 @@ export default {
                 id: com._id,
                 label: com._tag,
                 active: () => {
-                  this.activeComBorder(null, com);
-                  this.activeCom();
+                  this.activeCom(null, com);
                   window.event.stopPropagation();
                 },
                 delete: () => {
@@ -120,16 +121,15 @@ export default {
       // 手动删除组件
       delCom: function(com){
         com.del();
+        this.activeCom();
         this.emitTplChanged();
         this.emitComsTreeChanged();
-        this.hideComBorder();
-        this.activeCom();
       },
 
       // 拖拉组件
       allowDrop: function(ev) {
         ev.preventDefault();
-        this.activeComBorder(ev);
+        this.showComBorder(ev);
       },
       drop: function(ev) {
         const data=ev.dataTransfer.getData("drag-component");
@@ -172,7 +172,7 @@ export default {
 
       // 鼠标移动
       mouseMove: function(ev) {
-        this.activeComBorder(ev);
+        this.showComBorder(ev);
       },
 
       // 鼠标弹起
@@ -296,28 +296,28 @@ export default {
       },
 
       // 激活控件
-      activeCom: function(){
-        const vtoolborder = this.$refs.vtoolborder;
-        this.cur.activeCom = vtoolborder.com;
+      activeCom: function(ev, comx){
+        const activeBorder = this.$refs.activeBorder;
+        const com = comx || (ev ? this.getComUnderMouse(ev) : null);
+        if(com){
+          activeBorder.activeCom(com);
+        }else{
+          activeBorder.hide();
+        }
+        this.cur.activeCom = com;
         this.emitSelChanged();
       },
 
       // 显示控件的边框
-      activeComBorder: function(ev, item){
-        const vtoolborder = this.$refs.vtoolborder;
-        const com = ev ? this.getComUnderMouse(ev) : item;
+      showComBorder: function(ev){
+        const showBorder = this.$refs.showBorder;
+        const com = this.getComUnderMouse(ev);
         if(com){
-          vtoolborder.activeCom(com);
+          showBorder.activeCom(com);
         }
         else{
-          vtoolborder.hide();
+          showBorder.hide();
         }
-      },
-      
-      // 隐藏控件边框
-      hideComBorder: function(){
-        const vtoolborder = this.$refs.vtoolborder;
-        vtoolborder.hide();
       },
 
       // 表单数据变化

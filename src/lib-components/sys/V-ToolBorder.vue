@@ -1,7 +1,7 @@
 <template>
-  <div class="v-toolborder">
+  <div class="v-toolborder" :style="selfStyle">
       <!-- <div class="title">{{ com ? com._tag : '' }}</div> -->
-      <div class="del">
+      <div v-if="showTools" class="del">
           <img src="./imgs/trash.svg" width="15" height="15" title="删除" @mousedown.stop="del" />
           <img src="./imgs/copy.svg" width="15" height="15" title="复制" @mousedown.stop="copy" />
       </div>
@@ -13,6 +13,16 @@ export default {
     data: function(){
         return {
             com: null
+        }
+    },
+    props: {
+        showTools: {
+            type: Boolean,
+            default: true
+        },
+        zIndex: {
+            type: Number,
+            default: 99
         }
     },
     methods: {
@@ -42,6 +52,13 @@ export default {
             this.$emit('copy', this.com);
         }
     },
+    computed: {
+        selfStyle: function(){
+            return {
+                zIndex: this.zIndex
+            }
+        }
+    },
     mounted: function(){
     }
 }
@@ -52,7 +69,6 @@ export default {
         position: absolute;
         border: 1px dashed red;
         display: none;
-        z-index: 99;
         // & > .title {
         //     position: absolute;
         //     left: 0px;

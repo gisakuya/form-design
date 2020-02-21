@@ -4,7 +4,8 @@ import App from './App.vue'
 
 // 导入自身组件
 import Home from "./components/Home.vue";
-import HomePreview from "./components/HomePreview.vue";
+import Tpl from "./components/Tpl.vue";
+import TplPreview from "./components/TplPreview.vue";
 
 // 饿了么组件
 import ElementUI from 'element-ui';
@@ -50,8 +51,9 @@ requireComponent.keys().forEach(fileName => {
 
 // 定义路由
 const routes = [
-  { path: '/', component: Home },
-  { path: '/preview', component: HomePreview }
+  { path: '/tpl', component: Tpl },
+  { path: '/tpl-preview', component: TplPreview },
+  { path: '/', component: Home }
 ]
 
 const router = new VueRouter({
