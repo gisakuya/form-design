@@ -190,24 +190,36 @@ function CreateCom(ctx, com, h){
             }
         }
 
-        const vFor = com.attrs['v-for'];
-        const { realValue: forItems } = GetRealValue(ctx, vFor);
-        if(forItems){
-            const forPrefix = com.attrs['v-for-prefix'] || '$';
-            const forKey = com.attrs['v-for-key'];
-            
-            const copyArr = [];
-            for (let i = 0; i < forItems.length; i++) {
-                const forItem = forItems[i];
-                const forItemPath = `${vFor}[${i}]`;
-                const copy = DeepCopy(com, c => H2(c, forItem, forPrefix, forItemPath));
-                copy.id = forKey ? ObjectGetValue(forItem, forKey) : `${copy.id}${i}`;
-                delete copy.attrs['v-for'];
-                delete copy.attrs['v-for-prefix'];
-                delete copy.attrs['v-for-key'];
-                copyArr.push(H1(ctx, copy, h));
+        const vForSyntax= com.attrs['v-for'];
+        if(vForSyntax){
+            // v-for = "$ in #items"
+            // v-for-key="id"
+            let vFor = null;
+            let forPrefix = null;
+            let forKey = com.attrs['v-for-key'];
+            if(vForSyntax.indexOf(' in ') == -1){
+                vFor = vForSyntax;
+                forPrefix = com.attrs['v-for-prefix'] || '$.';
             }
-            return copyArr;
+            else{
+                [ forPrefix, vFor ] = vForSyntax.split(' in ');
+                forPrefix = forPrefix+'.';
+            }
+            const { realValue: forItems } = GetRealValue(ctx, vFor);
+            if(forItems){
+                const copyArr = [];
+                for (let i = 0; i < forItems.length; i++) {
+                    const forItem = forItems[i];
+                    const forItemPath = `${vFor}[${i}]`;
+                    const copy = DeepCopy(com, c => H2(c, forItem, forPrefix, forItemPath));
+                    copy.id = forKey ? ObjectGetValue(forItem, forKey) : `${copy.id}${i}`;
+                    delete copy.attrs['v-for'];
+                    delete copy.attrs['v-for-prefix'];
+                    delete copy.attrs['v-for-key'];
+                    copyArr.push(H1(ctx, copy, h));
+                }
+                return copyArr;
+            }
         }
     }
 

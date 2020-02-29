@@ -142,9 +142,7 @@ export default {
             }},
             {title: 'DIV', componentName: 'v-div', designStyle: { 
               minHeight: "20px", border: "1px dashed lightblue" 
-              }, attrs: {
-                'v-for': null
-            }}
+              }}
             // { title: '行', componentName: 'v-row' },
             // { title: '列', componentName: 'v-col' },
             // { title: '网格', componentName: 'v-grid' }
