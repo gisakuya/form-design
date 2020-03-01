@@ -104,7 +104,7 @@ export default {
     return {
       menus: [
         { title: '基本控件', icon: 'el-icon-bell', submenus: [
-          { title: '标签', componentName: 'v-label'},
+          { title: '文本', componentName: 'v-text'},
           { title: '文本框', componentName: 'el-input'},
           { title: '日期选择器', componentName: 'el-date-picker'},
           { title: '时间选择器', componentName: 'el-time-picker'},
@@ -131,6 +131,12 @@ export default {
           { title: '表单项', componentName: 'el-form-item', designStyle: { 
             minHeight: "20px", border: "1px dashed lightgreen" 
           }},
+          { title: '图标', componentName: 'v-icon'},
+          { title: '弹出框', componentName: 'el-popover'},
+          { title: 'Tag', componentName: 'el-tag'},
+          { title: '模板', componentName: 'v-template', designStyle: { 
+            minHeight: "20px", border: "1px dashed lightgreen" 
+          }},
         ]},
         {
           title: '容器', icon: 'el-icon-s-grid', submenus: [
@@ -148,11 +154,22 @@ export default {
             // { title: '网格', componentName: 'v-grid' }
           ]
         },
+        { title: '数据', icon: 'el-icon-setting', submenus: [ 
+            { title: '表格', componentName: 'el-table', designStyle: { 
+              minHeight: "20px", border: "1px dashed lightblue" 
+            }},
+            { title: '表格头', componentName: 'el-table-column'}
+          ]
+        },
         { title: '逆变器', icon: 'el-icon-setting', submenus: [ 
             { title: 'SUN2000-33KTL', componentName: 'nb-sun2000-33k' }, 
-            { title: 'SUN2000-36KTL', componentName: 'nb-sun2000-36k' }
+            { title: 'SUN2000-36KTL', componentName: 'nb-sun2000-36k' },
           ]  
-        }
+        },
+        { title: '测试', icon: 'el-icon-setting', submenus: [ 
+            { title: '作用插槽', componentName: 'scoped-slot-test'},
+          ]  
+        },
       ],
       activeCom: {},
       comsTree: [],

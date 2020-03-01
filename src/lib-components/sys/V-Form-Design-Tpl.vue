@@ -1,29 +1,13 @@
 <script>
-import { GetTagModel, DeepCopy, Foreach, ObjectGetValue, ArrayAddChild } from "./utility";
-
-const reg = /#([\w.\[\]]+)(?:\s*=\s*(.+))?/;
+import { GetTagModel, DeepCopy, Foreach, ObjectGetValue, 
+ArrayAddChild, ObjectSetValue, RegReplace } from "./utility";
 
 function ConvertEventBodyScript(body){
     if(!body) return body;
     return body.replace(/\blog\(/, "console.log(");
 }
 
-function GetRealValue(ctx, valueExp){
-    const _this = ctx.parent;
-    const matches = reg.exec(valueExp);
-    if(matches){
-        const matchName = matches[1];
-        let defVal = matches[2];
-        if(defVal){
-            try { defVal = JSON.parse(defVal) } catch {}
-        }
-        _this.addDynamicProp(matchName, defVal);
-        return { realValue: _this.getDynamicProp(matchName), matchName: matchName };
-    }
-    return { realValue: valueExp, matchName: null };
-}
-
-function H2(p, item, prefix, itemPath){
+function H2(p, item, prefix, itemPath, indexOrKey){
     // 处理props
     if(p.props){
         const realProps = {};
@@ -31,6 +15,9 @@ function H2(p, item, prefix, itemPath){
             if(typeof propVal == 'string' && propVal.startsWith(prefix)){
                 const subVal = propVal.substring(prefix.length);
                 if(subVal == ''){
+                }
+                else if(subVal == '[key]' || subVal == '[index]'){
+                    realProps[key] = indexOrKey;
                 }
                 else if(subVal == prefix){
                     realProps[key] = item;
@@ -52,6 +39,9 @@ function H2(p, item, prefix, itemPath){
                 if(key == 'v-model'){
                     if(subVal == ''){
                     }
+                    else if(subVal == '[key]' || subVal == '[index]'){
+                        realAttrs[key] = indexOrKey;
+                    }
                     else if(subVal == prefix){
                         realAttrs[key] = `${itemPath}`;
                     }
@@ -63,10 +53,10 @@ function H2(p, item, prefix, itemPath){
                     if(subVal == ''){
                     }
                     else if(subVal == prefix){
-                        realProps[key] = item;
+                        realAttrs[key] = item;
                     }
                     else{
-                        realProps[key] = ObjectGetValue(item, subVal);
+                        realAttrs[key] = ObjectGetValue(item, subVal);
                     }
                 }
             }
@@ -76,7 +66,58 @@ function H2(p, item, prefix, itemPath){
 }
 
 function H1(ctx, com, h){
-    const { parent: _this, props: { designMode } } = ctx;
+    const { _this, designMode } = ctx;
+
+    const scopedSlots = {};
+    if(!designMode){
+        // 处理作用域插槽
+        
+        if(!ctx.renderFromScopedSlot && com.attrs){
+            // 如果不是从作用域插槽里渲染，则跳过
+            for (const key in com.attrs) {
+                if(key.startsWith('v-slot:')){
+                    return [];
+                }
+            }
+        }
+
+        Foreach(com.children, child=>{
+            Foreach(child.attrs, (val, key)=>{
+                if(key.startsWith('v-slot:')){
+                    const slotName = key.substr(7);
+                    const pattern = `${val.trim()}.([\\w_.[\\]&$]+)`;
+                    const reg1 = new RegExp(pattern, "g");
+                    const reg2 = new RegExp(`{{\\s*${pattern}\\s*}}`, "g");
+
+                    scopedSlots[slotName] = scopedProps => {
+                        return CreateCom(Object.assign({}, ctx, {
+                            getRealValue: valueExp => {
+                                const { realValue, success } = 
+                                    RegReplace([reg2, reg1], valueExp, (_, field)=>{
+                                        return ObjectGetValue(scopedProps, field)
+                                    })
+
+                                return success ? { matchName: valueExp, realValue: realValue } : 
+                                    ctx.getRealValue(valueExp);
+                            },
+                            setValue: (name, value)=>{
+                                const match = reg1.exec(name);
+                                if(match){
+                                    const field = match[1];
+                                    ObjectSetValue(scopedProps, field, value);
+                                }
+                                else{
+                                    ctx.setValue(name, value);
+                                }
+                            },
+                            renderFromScopedSlot: true // 从作用域插槽里渲染
+                        }), child, h);
+                    }
+                }
+            })
+        })
+
+    }
 
     const children = [];
     Foreach(com.children, child=>{
@@ -95,7 +136,7 @@ function H1(ctx, com, h){
     if(com.props){
         for (const key in com.props) {
             const valueExp = com.props[key];
-            const { realValue } = GetRealValue(ctx, valueExp);
+            const { realValue } = ctx.getRealValue(valueExp);
             props[key] = realValue;
         }
     }
@@ -107,12 +148,12 @@ function H1(ctx, com, h){
     if(com.attrs){
         for (const key in com.attrs) {
             const valueExp = com.attrs[key];
-            const { realValue, matchName } = GetRealValue(ctx, valueExp);
+            const { realValue, matchName } = ctx.getRealValue(valueExp);
             if(key.startsWith("v-model")){
                 if(valueExp && matchName){
                     const modifiers = key.substring(7);
-                    const numberMod = modifiers.indexOf('.number') != -1;
-                    const trimMod = modifiers.indexOf('.trim') != -1;
+                    const numberMode = modifiers.indexOf('.number') != -1;
+                    const trimMode = modifiers.indexOf('.trim') != -1;
                     const lazyMode = modifiers.indexOf('.lazy') != -1;
 
                     let { prop = "value", event = "input" } = GetTagModel(com.tag);
@@ -120,14 +161,14 @@ function H1(ctx, com, h){
                     props[prop] = realValue;
                     handlers[event] = e => {
                         let val = e;
-                        if(numberMod){
+                        if(numberMode){
                             val = parseFloat(e);
                             if(isNaN(val)) val = e;
                         }
-                        if(trimMod){
+                        if(trimMode){
                             val = e.trim();
                         }
-                        _this.setDynamicProp(matchName, val);
+                        ctx.setValue(matchName, val);
                     }
                 }
             }
@@ -139,8 +180,11 @@ function H1(ctx, com, h){
             else if(key == 'ref'){
                 ref = realValue;
             }
-            else if(key == 'slot'){
+            else if(key == 'v-slot'){
                 slot = realValue;
+            }
+            else if(key.startsWith('v-slot')){
+                
             }
             else{
                 attrs[key] = realValue;
@@ -150,11 +194,13 @@ function H1(ctx, com, h){
 
     if(com.events){
         for (const key in com.events) {
-            const body = ConvertEventBodyScript(com.events[key]);
-            const fnt = new Function(body);
+            const eventStr = com.events[key];
+            const m = /(\w+)\((.+)\)/.exec(eventStr);
+            const fntName = m[1];
+            const params = m[2].split(',').map(x=>x.trim());
             handlers[key] = ()=>{
-                fnt.call(_this);
-            };
+                _this[fntName].apply(_this, params.map(x=> ctx.getRealValue(x).realValue))
+            }
         }
     }
 
@@ -168,10 +214,19 @@ function H1(ctx, com, h){
         props: props,
         attrs: attrs,
         on: handlers,
+        scopedSlots: scopedSlots,
         slot: slot,
         ref: ref,
         refInFor: com.refInFor
     };
+
+    if(!designMode && com.tag == 'v-template'){
+        // 特殊处理
+        Foreach(children, child=>{
+            child.data.slot = slot;
+        });
+        return children;
+    }
 
     return h(com.tag, dataObj, children);
 }
@@ -179,12 +234,10 @@ function H1(ctx, com, h){
 function CreateCom(ctx, com, h){
     if(typeof com == "string") return com;
 
-    const { parent: _this, props: { designMode } } = ctx;
-
-    if(!designMode && com.attrs){
+    if(!ctx.designMode && com.attrs){
         const vIf = com.attrs['v-if'];
         if(vIf){
-            const { realValue: conditon } = GetRealValue(ctx, vIf);
+            const { realValue: conditon } = ctx.getRealValue(vIf);
             if(!conditon){
                 return [];
             }
@@ -195,28 +248,44 @@ function CreateCom(ctx, com, h){
             // v-for = "$ in #items"
             // v-for-key="id"
             let vFor = null;
+            let forKey = com.attrs['v-for-key'] || 'id';
             let forPrefix = null;
-            let forKey = com.attrs['v-for-key'];
             if(vForSyntax.indexOf(' in ') == -1){
                 vFor = vForSyntax;
-                forPrefix = com.attrs['v-for-prefix'] || '$.';
+                forPrefix = com.attrs['v-for-prefix'] || '$';
             }
             else{
                 [ forPrefix, vFor ] = vForSyntax.split(' in ');
-                forPrefix = forPrefix+'.';
             }
-            const { realValue: forItems } = GetRealValue(ctx, vFor);
+            forPrefix = forPrefix.trim()+'.';
+            const { realValue: forItems } = ctx.getRealValue(vFor);
             if(forItems){
                 const copyArr = [];
-                for (let i = 0; i < forItems.length; i++) {
-                    const forItem = forItems[i];
-                    const forItemPath = `${vFor}[${i}]`;
-                    const copy = DeepCopy(com, c => H2(c, forItem, forPrefix, forItemPath));
-                    copy.id = forKey ? ObjectGetValue(forItem, forKey) : `${copy.id}${i}`;
-                    delete copy.attrs['v-for'];
-                    delete copy.attrs['v-for-prefix'];
-                    delete copy.attrs['v-for-key'];
-                    copyArr.push(H1(ctx, copy, h));
+                if(forItems instanceof Array){
+                    // 数组形式
+                    for (let i = 0; i < forItems.length; i++) {
+                        const forItem = forItems[i];
+                        const forItemPath = `${vFor}[${i}]`;
+                        const copy = DeepCopy(com, c => H2(c, forItem, forPrefix, forItemPath, i));
+                        copy.id = forKey ? ObjectGetValue(forItem, forKey) : `${copy.id}${i}`;
+                        delete copy.attrs['v-for'];
+                        delete copy.attrs['v-for-prefix'];
+                        delete copy.attrs['v-for-key'];
+                        copyArr.push(H1(ctx, copy, h));
+                    }
+                }
+                else{
+                    // 对象形式
+                    for (const key in forItems) {
+                        const forItem = forItems[key];
+                        const forItemPath = `${vFor}.${key}`;
+                        const copy = DeepCopy(com, c => H2(c, forItem, forPrefix, forItemPath, key));
+                        copy.id = forKey ? ObjectGetValue(forItem, forKey) : `${copy.id}${key}`;
+                        delete copy.attrs['v-for'];
+                        delete copy.attrs['v-for-prefix'];
+                        delete copy.attrs['v-for-key'];
+                        copyArr.push(H1(ctx, copy, h));
+                    }
                 }
                 return copyArr;
             }
@@ -233,7 +302,7 @@ export default {
             type: Array,
             required: true
         },
-        designMode: false
+        designMode: Boolean
     },
     render: function(h, ctx){
         const template = ctx.props.template;
@@ -245,9 +314,33 @@ export default {
 
         // const dt1 = new Date();
 
+        const _this = ctx.parent;
+        const pattern = "(#[\\w_.[\\]]+)(?:\\s*=\\s*(.+))?";
+        const reg1 = new RegExp(pattern, "g");
+        const reg2 = new RegExp(`{{\\s*${pattern}\\s*}}`, "g");
+        const newCtx = {
+            designMode: ctx.props.designMode,
+            getRealValue: valueExp=>{
+                let lastMatchName = null;
+                const { realValue, singleMatch } = 
+                    RegReplace([reg2,reg1], valueExp, (_, matchName, defVal)=>{
+                        lastMatchName = matchName
+                        if(defVal){
+                            try { defVal = JSON.parse(defVal) } catch {}
+                        }
+                        _this.addDynamicProp(matchName, defVal)
+                        return _this.getDynamicProp(matchName)
+                    })
+                    
+                return { realValue: realValue, matchName: singleMatch ? lastMatchName: null }
+            },
+            setValue: (name, val) => _this.setDynamicProp(name, value),
+            _this: _this
+        };
+
         const vNodes = [];
         Foreach(template, tpl=>{
-            ArrayAddChild(vNodes, CreateCom(ctx, tpl, h));
+            ArrayAddChild(vNodes, CreateCom(newCtx, tpl, h));
         });
 
         if(defaultSlot){

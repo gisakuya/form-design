@@ -6,7 +6,8 @@
             style="width:100%"/>
         </p>
         <v-contextmenu ref="vctxmenu"></v-contextmenu>
-        <v-form-design-tpl :template="tpl.components"></v-form-design-tpl>
+        <div v-if="isLoading">加载中...</div>
+        <v-form-design-tpl v-else :template="tpl.components"></v-form-design-tpl>
     </div>
 </template>
 
@@ -27,7 +28,8 @@ export default {
   data() {
     return {
       formData: '',
-      dynamicProps: {}
+      dynamicProps: {},
+      isLoading: false
     }
   },
   props: {
@@ -60,6 +62,16 @@ export default {
       formDataChanged: function(val){
         const obj = JSON.parse(val);
         Object.assign(this.dynamicProps, obj);
+      },
+
+      // 更新动态属性
+      updateDynamicProps: function(data){
+        // https://cn.vuejs.org/v2/guide/reactivity.html#检测变化的注意事项
+        this.dynamicProps = Object.assign({}, this.dynamicProps, data);
+      },
+      // 更新方法
+      updateMethods: function(methods){
+          Object.assign(this, methods);
       }
   },
   mounted: function() {
@@ -67,15 +79,28 @@ export default {
   watch: {
     tpl: function(){
       console.log('tpl changed');
-      if(this.tpl.mixin){
-        const mixinstr = this.tpl.mixin.replace(/\b(?<=this\.)\w[\w.]+\s*/g, function(m){
+
+      const dataUrl = this.tpl.dataUrl;
+      if(dataUrl){
+        // fetch的用法：
+        // https://www.jianshu.com/p/6fd482c9ce19
+        // https://developer.mozilla.org/zh-CN/docs/Web/API/Fetch_API/Using_Fetch
+        this.isLoading = true;
+        fetch(dataUrl).then(res=>res.json()).then(data => {
+          this.updateDynamicProps(data);
+          this.isLoading = false;
+        })
+      }
+
+      const mixinstr = this.tpl.mixin;
+      if(mixinstr){
+        const mixinObj = LooseJsonParse(mixinstr.replace(/\b(?<=this\.)\w[\w.]+\s*/g, function(m){
           return m.endsWith('(') ? m : 'dynamicProps.'+m;
-        });
-        let mixin = LooseJsonParse(mixinstr);
-        let data = mixin.data.call(this);
-        let methods = mixin.methods;
-        this.dynamicProps = Object.assign({}, this.dynamicProps, data);
-        Object.assign(this, methods);
+        }));
+        const data = mixinObj.data.call(this);
+        const methods = mixinObj.methods;
+        this.updateDynamicProps(data);
+        this.updateMethods(methods);
       }
     }
   }

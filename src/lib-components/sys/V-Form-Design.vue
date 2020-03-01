@@ -52,7 +52,6 @@ export default {
     }
   },
   props: {
-      dataUrl: String,
       tpl: {
         type: Object,
         default:function(){
@@ -173,6 +172,7 @@ export default {
       drop: function(ev) {
         if(this.cur.movingCom){
           this.dropMovingCom(ev);
+          delete this.cur.movingCom;
         }
         else{
           this.dropNewComponent(ev);
@@ -184,7 +184,6 @@ export default {
           const srcId = this.cur.movingCom._id;
           const destId = splitLine.com._id;
           const dir = splitLine.dir;
-          delete this.cur.movingCom;
           splitLine.hide();
           this.activeCom();
           this.showComBorder();
@@ -279,8 +278,13 @@ export default {
       },
 
       // 发送事件
-      emitTplChanged: function(components, mixin){
-          this.$emit("tplChanged", { mixin: mixin, components: components||[ ...this.tpl.components ] });
+      emitTplChanged: function(components, extra = {}){
+          const tpl = {
+            mixin: extra.mixin || this.tpl.mixin,
+            dataUrl: extra.dataUrl || this.tpl.dataUrl,
+            components: components || [ ...this.tpl.components ] 
+          };
+          this.$emit("tplChanged", tpl);
       },
 
       // 发送事件
@@ -290,15 +294,17 @@ export default {
           this.$emit("selChanged", { id: com._id, tag: com._tag, props: com.props, events: com.events });
         }
         else{
-          const props = [];
-          props.push({
+          const props = [{
             title: 'mixin',
             name: 'mixin',
             get: () => this.tpl.mixin,
-            set: val => {
-              this.emitTplChanged(null, val);
-            }
-          })
+            set: val => this.emitTplChanged(null, { mixin: val })
+          },{
+            title: 'dataUrl',
+            name: 'dataUrl',
+            get: () => this.tpl.dataUrl,
+            set: val => this.emitTplChanged(null, { dataUrl: val })
+          }];
           const events = [];
           this.$emit("selChanged", { id: 0, tag: 'form-design', props: props, events: events });
         }

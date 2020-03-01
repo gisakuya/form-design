@@ -352,6 +352,7 @@ function ForeachObj(arr, iter){
 }
 
 // LooseJsonParse
+// https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/eval
 export function LooseJsonParse(obj){
     return Function('"use strict";return (' + obj + ')')();
 }
@@ -427,7 +428,7 @@ export function ArrayAddChild(arr, child){
 export function ObjectSetValue(obj, prop, val, setMethod = (o,p,v)=> o[p] = v){
     let parent = obj;
     const names = prop.split('.');
-    const reg = /(\w+)(?:\[(\d+)\])?/;
+    const reg = /([\w$&_]+)(?:\[(\d+)\])?/;
     for (let i = 0; i < names.length; i++) {
         const tmp = reg.exec(names[i]);
         const name = tmp[1];
@@ -454,7 +455,7 @@ export function ObjectSetValue(obj, prop, val, setMethod = (o,p,v)=> o[p] = v){
 export function ObjectGetValue(obj, prop){
     let parent = obj;
     const names = prop.split('.');
-    const reg = /(\w+)(?:\[(\d+)\])?/;
+    const reg = /([\w$&_]+)(?:\[(\d+)\])?/;
     for (let i = 0; i < names.length; i++) {
         const tmp = reg.exec(names[i]);
         const name = tmp[1];
@@ -515,3 +516,31 @@ export function StyleObjToStr(style){
     }
     return obj;
 }
+
+// 正则替换
+export function RegReplace(regs, input, replaceFnt){
+    if(!input) return { success: false, realValue: input };
+
+    let lastValue = null;
+    let lastMatch = null;
+    let count = 0;
+    let replaceValue = null;
+    for (let i = 0; i < regs.length; i++) {
+        const reg = regs[i];
+        if(reg.test(input)){
+            replaceValue = input.replace(reg, function(){
+                count++;
+                lastMatch = arguments[0];
+                lastValue = replaceFnt.apply(this, arguments);
+                return lastValue;
+            });
+            break;
+        }
+    }
+
+    if(count == 0) return { success: false, realValue: input };
+    const singleMatch =  count == 1 && lastMatch == input;
+    if(singleMatch) return { success: true, realValue: lastValue, singleMatch: true };
+    return { success: true, realValue: replaceValue };
+}
+
