@@ -195,6 +195,7 @@ function H1(ctx, com, h){
     if(com.events){
         for (const key in com.events) {
             const eventStr = com.events[key];
+            if(!eventStr) continue;
             const m = /([\w._$&]+)\((.*)\)/.exec(eventStr);
             const fntName = m[1];
             const params = m[2].split(',').map(x=>x.trim()).filter(x=>x);
@@ -336,7 +337,7 @@ export default {
                         _this.addDynamicProp(matchName, defVal)
                         return _this.getDynamicProp(matchName)
                     })
-                    
+
                 return { realValue: realValue, matchName: singleMatch ? lastMatchName: null }
             },
             setValue: (name, value) => _this.setDynamicProp(name, value),
@@ -352,8 +353,7 @@ export default {
             vNodes.push(...defaultSlot);
         }
 
-        const dt2 = new Date();
-        console.log('总共--------------：', dt2 - dt1);
+        console.log('总共--------------：', new Date() - dt1);
 
         return h("div", vNodes);
     }

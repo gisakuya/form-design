@@ -519,7 +519,7 @@ export function StyleObjToStr(style){
 
 // 正则替换
 export function RegReplace(regs, input, replaceFnt){
-    if(!input) return { success: false, realValue: input };
+    if(!input || typeof input != 'string') return { success: false, realValue: input };
 
     let lastValue = null;
     let lastMatch = null;
