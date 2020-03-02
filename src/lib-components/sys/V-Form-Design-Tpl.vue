@@ -195,11 +195,16 @@ function H1(ctx, com, h){
     if(com.events){
         for (const key in com.events) {
             const eventStr = com.events[key];
-            const m = /(\w+)\((.+)\)/.exec(eventStr);
+            const m = /([\w._$&]+)\((.*)\)/.exec(eventStr);
             const fntName = m[1];
-            const params = m[2].split(',').map(x=>x.trim());
+            const params = m[2].split(',').map(x=>x.trim()).filter(x=>x);
             handlers[key] = ()=>{
-                _this[fntName].apply(_this, params.map(x=> ctx.getRealValue(x).realValue))
+                ObjectGetValue(_this, fntName).apply(_this, params.map(x=> {
+                    if(/^[\d.]+$/.test(x)) return Number.parseFloat(x);
+                    let m = /^(['"])(.+)(\1)$/.exec(x);
+                    if(m) return m[2];
+                    return ctx.getRealValue(x).realValue;
+                }))
             }
         }
     }
@@ -312,7 +317,7 @@ export default {
 
         console.log('tpl render');
 
-        // const dt1 = new Date();
+        const dt1 = new Date();
 
         const _this = ctx.parent;
         const pattern = "(#[\\w_.[\\]]+)(?:\\s*=\\s*(.+))?";
@@ -334,7 +339,7 @@ export default {
                     
                 return { realValue: realValue, matchName: singleMatch ? lastMatchName: null }
             },
-            setValue: (name, val) => _this.setDynamicProp(name, value),
+            setValue: (name, value) => _this.setDynamicProp(name, value),
             _this: _this
         };
 
@@ -347,8 +352,8 @@ export default {
             vNodes.push(...defaultSlot);
         }
 
-        // const dt2 = new Date();
-        // console.log('总共--------------：', dt2 - dt1);
+        const dt2 = new Date();
+        console.log('总共--------------：', dt2 - dt1);
 
         return h("div", vNodes);
     }
